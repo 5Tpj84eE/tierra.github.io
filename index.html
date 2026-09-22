@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark h-full bg-[#070b10] text-slate-100 select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>人工生命1個体観察シャーレ - Ambient Specimen Chamber</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- p5.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bio: {
+                            bg: '#070b10',
+                            card: '#0d1520',
+                            border: 'rgba(255, 255, 255, 0.08)',
+                            mint: '#34d399',
+                            cyan: '#22d3ee',
+                            amber: '#fbbf24',
+                            violet: '#a78bfa'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Consolas', 'Courier New', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #070b10;
+            color: #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        /* Glassmorphism Containers */
+        .glass-card {
+            background: rgba(13, 21, 32, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Petri Dish Outer Frame Glow */
+        .dish-frame {
+            position: relative;
+            box-shadow: 0 0 60px rgba(34, 211, 238, 0.08), inset 0 0 35px rgba(0, 0, 0, 0.85);
+            touch-action: none;
+        }
+
+        /* Smooth Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            height: 5px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #22d3ee;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
+        }
+
+        /* Ambient Indicator Pulse */
+        @keyframes softPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.45; transform: scale(0.92); }
+        }
+        .pulse-indicator {
+            animation: softPulse 3.8s infinite ease-in-out;
+        }
+
+        /* Floating Name Label Fade Animation */
+        @keyframes labelFadeIn {
+            0% { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-label-in {
+            animation: labelFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-full flex flex-col justify-between">
+
+    <header class="border-b border-slate-800/80 bg-[#090d14]/90 backdrop-blur-md px-4 sm:px-6 py-3 sticky top-0 z-50 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div id="status-dot" class="w-2.5 h-2.5 rounded-full bg-cyan-400 pulse-indicator shadow-[0_0_8px_#22d3ee]"></div>
+            <div>
+                <h1 class="text-sm sm:text-base font-medium tracking-wide text-slate-100 flex items-center gap-2">
+                    人工生命1個体観察シャーレ
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/70 text-cyan-300 border border-cyan-500/20 hidden sm:inline-block">
+                        Ambient Specimen
+                    </span>
+                </h1>
+            </div>
+        </div>
+        <div class="text-xs font-mono flex items-center gap-2">
+            <span class="text-slate-400">個体:</span>
+            <span id="header-specimen-name" class="text-cyan-300 font-bold bg-cyan-950/40 px-2.5 py-0.5 rounded-lg border border-cyan-500/20 animate-label-in">
+                未命名
+            </span>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+        
+        <!-- Petri Dish Viewport -->
+        <section class="lg:col-span-7 flex flex-col items-center justify-center">
+            <div class="glass-card p-4 sm:p-6 rounded-3xl w-full flex flex-col items-center justify-center relative">
+                
+                <!-- p5 Canvas Attachment Container -->
+                <div id="p5-canvas-holder" class="dish-frame rounded-full overflow-hidden my-1 flex justify-center items-center cursor-pointer">
+                    <!-- Canvas inserted dynamically by p5 -->
+                </div>
+
+                <!-- Interaction Hint -->
+                <div class="w-full max-w-sm flex justify-between items-center text-[11px] font-mono text-slate-400 mt-3 px-2">
+                    <span class="flex items-center gap-1 text-cyan-400/90">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+                        タップ/クリック: 個体を命名＆刺激
+                    </span>
+                    <span id="header-status-text" class="text-emerald-400">状態: 安定共鳴</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sidebar Telemetry & Controls -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            
+            <!-- Real-time Telemetry Panel -->
+            <div class="glass-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3">
+                <div class="flex justify-between items-center text-xs font-medium text-slate-400 border-b border-slate-800/80 pb-2">
+                    <span>個体生体計測 (Telemetry)</span>
+                    <span class="text-cyan-400 font-mono text-[11px]">CHAMBER #01</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5 font-mono">
+                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
+                        <div class="text-[10px] text-slate-400 mb-0.5">個体名 (Name)</div>
+                        <div class="text-sm font-bold text-cyan-300 truncate" id="val-specimen-name">未命名</div>
+                    </div>
+                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
+                        <div class="text-[10px] text-slate-400 mb-0.5">細胞質量 (Mass)</div>
+                        <div class="text-lg font-bold text-emerald-400" id="val-cell-count">0</div>
+                    </div>
+                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
+                        <div class="text-[10px] text-slate-400 mb-0.5">経過世代 (Gen)</div>
+                        <div class="text-lg font-bold text-slate-200" id="val-generation">0</div>
+                    </div>
+                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
+                        <div class="text-[10px] text-slate-400 mb-0.5">形態安定度 (Stasis)</div>
+                        <div class="text-lg font-bold text-teal-400" id="val-stasis">100%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ambient Controls Panel -->
+            <div class="glass-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3.5">
+                
+                <!-- Audio Switch -->
+                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/60">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-medium text-slate-200">アンビエントサウンド</span>
+                        <span class="text-[10px] text-slate-400">432Hz Healing Frequency Synth</span>
+                    </div>
+                    <button id="btn-audio-toggle" class="min-h-[36px] px-4 rounded-xl text-xs font-mono font-medium transition-all duration-300 bg-slate-800/80 text-slate-400 hover:bg-slate-700 border border-slate-700/60 active:scale-95">
+                        OFF
+                    </button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button id="btn-rename-specimen" class="min-h-[42px] py-2 px-3 rounded-xl text-xs font-medium bg-cyan-500/90 hover:bg-cyan-400 text-slate-950 transition-all duration-200 shadow-[0_0_15px_rgba(34,211,238,0.2)] active:scale-95 flex items-center justify-center gap-1.5">
+                        🏷️ 個体を再命名
+                    </button>
+                    <button id="btn-manual-pulse" class="min-h-[42px] py-2 px-3 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5">
+                        ✨ 遺伝子変異刺激
+                    </button>
+                </div>
+
+                <!-- Play/Pause & Speed -->
+                <div class="flex items-center gap-3 pt-1">
+                    <button id="btn-toggle-pause" class="min-h-[38px] px-4 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 active:scale-95">
+                        一時停止
+                    </button>
+                    <div class="flex-1 flex flex-col gap-1 text-xs font-mono text-slate-400">
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span>進行速度</span>
+                            <span id="fps-label" class="text-cyan-400">12 FPS</span>
+                        </div>
+                        <input type="range" id="slider-fps" min="4" max="24" value="12" class="w-full accent-cyan-400 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/40 py-2.5 text-center text-[11px] font-mono text-slate-500">
+        人工生命1個体観察シャーレ &bull; Specimen Observation Chamber &bull; Anti-Flicker Engine
+    </footer>
+
+    <script>
+        // Grid & Simulation Dimensions
+        const GRID_SIZE = 80;
+        const DISH_RADIUS = 36;
+        const CENTER = GRID_SIZE / 2;
+
+        // Cellular Automaton Matrices
+        let grid = new Array(GRID_SIZE).fill(0).map(() => new Uint8Array(GRID_SIZE));
+        let nextGrid = new Array(GRID_SIZE).fill(0).map(() => new Uint8Array(GRID_SIZE));
+        let ageGrid = new Array(GRID_SIZE).fill(0).map(() => new Uint16Array(GRID_SIZE));
+        
+        // Anti-Flicker Interpolation Grid (Smooth lerp for eye-comfort)
+        let smoothGrid = new Array(GRID_SIZE).fill(0).map(() => new Float32Array(GRID_SIZE));
+
+        // State Variables
+        let generation = 0;
+        let cellCount = 0;
+        let mutationCount = 0;
+        let stasisCounter = 0;
+        let historyHashes = [];
+        let comX = CENTER; // Center of Mass X
+        let comY = CENTER; // Center of Mass Y
+        let isRunning = true;
+        let targetFPS = 12;
+
+        // Specimen Naming Database
+        const NAME_PREFIXES = ["ルミナ", "ゼファー", "ネブラ", "フィリア", "アルヴァ", "エーテル", "シリウス", "クロノス", "ヴェラ", "アストラ", "オリオン", "セルラ", "ノヴァ", "リブラ", "フェニックス", "ステラ"];
+        const NAME_SUFFIXES = ["アストラ", "セレネ", "ソラリス", "アイリス", "エテール", "アクア", "ルクス", "ブリーズ", "エコー", "プリズム", "ヴォイド", "ハーモニー", "ネビュラ", "プラズマ"];
+        const NAME_NUMERALS = ["-01", "-07", "-12", "-IV", "-IX", "-XII", "-42", "-77", "-α", "-Ω", "-III", "-VI"];
+
+        let currentSpecimenName = "未命名";
+
+        function generateRandomName() {
+            const pref = NAME_PREFIXES[Math.floor(Math.random() * NAME_PREFIXES.length)];
+            const suff = NAME_SUFFIXES[Math.floor(Math.random() * NAME_SUFFIXES.length)];
+            const num = NAME_NUMERALS[Math.floor(Math.random() * NAME_NUMERALS.length)];
+            return `${pref}・${suff}${num}`;
+        }
+
+        // Floating On-Canvas Tag Systems
+        let floatingTags = [];
+
+        function triggerSpecimenNaming(customX = null, customY = null) {
+            currentSpecimenName = generateRandomName();
+
+            // Target coordinates: custom point or current Center of Mass
+            const tx = (customX !== null) ? customX : comX;
+            const ty = (customY !== null) ? customY : comY;
+
+            // Spawn floating label in p5 canvas
+            floatingTags.push({
+                name: currentSpecimenName,
+                gx: tx,
+                gy: ty,
+                alpha: 1.0,
+                offsetY: 0,
+                duration: 110 // frames to remain visible
+            });
+
+            // Update UI DOM
+            document.getElementById('header-specimen-name').textContent = currentSpecimenName;
+            document.getElementById('val-specimen-name').textContent = currentSpecimenName;
+
+            // Visual ripple & audio chime
+            ripples.push({
+                x: tx,
+                y: ty,
+                radius: 1,
+                maxRadius: 26,
+                alpha: 0.85
+            });
+
+            playCalmChime(528.0);
+        }
+
+        let audioCtx = null;
+        let isAudioOn = false;
+        let masterGain = null;
+        let droneOscs = [];
+
+        function initAudioEngine() {
+            if (audioCtx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(0.07, audioCtx.currentTime);
+            masterGain.connect(audioCtx.destination);
+
+            // 432Hz Deep Solfeggio Sine Drone Triad
+            const droneFreqs = [108.0, 162.0, 216.0, 288.0];
+            droneFreqs.forEach((freq, idx) => {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.025 / (idx + 1), audioCtx.currentTime);
+
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                droneOscs.push({ osc, gain });
+            });
+        }
+
+        const PENTATONIC_SCALE = [432.0, 528.0, 648.0, 768.0, 864.0, 1056.0];
+        function playCalmChime(freq = null) {
+            if (!isAudioOn || !audioCtx) return;
+            try {
+                const chimeFreq = freq || PENTATONIC_SCALE[Math.floor(Math.random() * PENTATONIC_SCALE.length)];
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(chimeFreq, audioCtx.currentTime);
+
+                // Very smooth exponential envelope to avoid any harsh pops
+                gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.04, audioCtx.currentTime + 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 3.4);
+
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 3.5);
+            } catch(e) { console.error(e); }
+        }
+
+        function isInsideDish(x, y) {
+            const dx = x - CENTER;
+            const dy = y - CENTER;
+            return (dx * dx + dy * dy) <= (DISH_RADIUS * DISH_RADIUS);
+        }
+
+        function stepSimulation() {
+            let newCellCount = 0;
+            let sumX = 0;
+            let sumY = 0;
+
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    if (!isInsideDish(x, y)) {
+                        nextGrid[x][y] = 0;
+                        ageGrid[x][y] = 0;
+                        continue;
+                    }
+
+                    // Count 8 neighbors
+                    let neighbors = 0;
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                                neighbors += grid[nx][ny];
+                            }
+                        }
+                    }
+
+                    const isAlive = grid[x][y] === 1;
+                    let willLive = false;
+
+                    // Standard Conway B3 / S23 Rules
+                    if (isAlive) {
+                        willLive = (neighbors === 2 || neighbors === 3);
+                    } else {
+                        willLive = (neighbors === 3);
+                    }
+
+                    nextGrid[x][y] = willLive ? 1 : 0;
+
+                    if (willLive) {
+                        newCellCount++;
+                        sumX += x;
+                        sumY += y;
+                        ageGrid[x][y] = isAlive ? Math.min(65535, ageGrid[x][y] + 1) : 0;
+                    } else {
+                        ageGrid[x][y] = 0;
+                    }
+                }
+            }
+
+            // Swap Buffer
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    grid[x][y] = nextGrid[x][y];
+                }
+            }
+
+            generation++;
+            cellCount = newCellCount;
+
+            if (cellCount > 0) {
+                comX = sumX / cellCount;
+                comY = sumY / cellCount;
+            }
+
+            checkStasisAndInfiniteSurvival();
+        }
+
+        function checkStasisAndInfiniteSurvival() {
+            let hash = 0;
+            for (let x = 0; x < GRID_SIZE; x += 4) {
+                for (let y = 0; y < GRID_SIZE; y += 4) {
+                    hash = (hash + grid[x][y] * (x + y + 1)) % 100003;
+                }
+            }
+
+            if (cellCount < 14) {
+                stasisCounter += 4;
+            } else if (historyHashes.includes(hash)) {
+                stasisCounter++;
+            } else {
+                stasisCounter = Math.max(0, stasisCounter - 1);
+            }
+
+            historyHashes.push(hash);
+            if (historyHashes.length > 20) historyHashes.shift();
+
+            // Auto-trigger gentlest mutation pulse if frozen or extinct
+            if (stasisCounter >= 18) {
+                triggerGeneticPulse("自然遺伝子再共鳴");
+                stasisCounter = 0;
+            }
+        }
+
+        let ripples = [];
+
+        function triggerGeneticPulse(reason = "遺伝子変異") {
+            mutationCount++;
+            playCalmChime();
+
+            const targetX = cellCount > 0 ? Math.round(comX) : CENTER;
+            const targetY = cellCount > 0 ? Math.round(comY) : CENTER;
+
+            // Spawn organic seed cluster near Center of Mass
+            const seedRadius = 4;
+            for (let dx = -seedRadius; dx <= seedRadius; dx++) {
+                for (let dy = -seedRadius; dy <= seedRadius; dy++) {
+                    const px = targetX + dx;
+                    const py = targetY + dy;
+                    if (isInsideDish(px, py) && Math.random() < 0.55) {
+                        grid[px][py] = 1;
+                        ageGrid[px][py] = 0;
+                    }
+                }
+            }
+
+            ripples.push({
+                x: targetX,
+                y: targetY,
+                radius: 1,
+                maxRadius: 28,
+                alpha: 0.8
+            });
+
+            // If unnamed yet, give name on pulse
+            if (currentSpecimenName === "未命名") {
+                triggerSpecimenNaming(targetX, targetY);
+            }
+
+            const statusElem = document.getElementById('header-status-text');
+            const dotElem = document.getElementById('status-dot');
+            statusElem.textContent = `状態: ${reason}`;
+            statusElem.className = 'text-violet-400';
+            dotElem.className = 'w-2.5 h-2.5 rounded-full bg-violet-400 pulse-indicator shadow-[0_0_8px_#a78bfa]';
+
+            setTimeout(() => {
+                if (isRunning) {
+                    statusElem.textContent = '状態: 安定共鳴';
+                    statusElem.className = 'text-emerald-400';
+                    dotElem.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 pulse-indicator shadow-[0_0_8px_#22d3ee]';
+                }
+            }, 3000);
+        }
+
+        let cellSize = 5;
+
+        function setup() {
+            const availableWidth = Math.min(380, window.innerWidth - 48);
+            const canvas = createCanvas(availableWidth, availableWidth);
+            canvas.parent('p5-canvas-holder');
+
+            cellSize = width / GRID_SIZE;
+            colorMode(HSB, 360, 100, 100, 1);
+            frameRate(targetFPS);
+
+            // Initialize initial living organism seed
+            for (let dx = -3; dx <= 3; dx++) {
+                for (let dy = -3; dy <= 3; dy++) {
+                    if (dx*dx + dy*dy <= 12 && Math.random() < 0.6) {
+                        grid[CENTER + dx][CENTER + dy] = 1;
+                    }
+                }
+            }
+
+            // Generate initial specimen name
+            currentSpecimenName = generateRandomName();
+            document.getElementById('header-specimen-name').textContent = currentSpecimenName;
+            document.getElementById('val-specimen-name').textContent = currentSpecimenName;
+        }
+
+        function draw() {
+            if (isRunning) {
+                stepSimulation();
+            }
+
+            // Dark slate background with soft trailing effect
+            background(215, 35, 6, 0.42);
+
+            // Render Anti-Flicker Interpolated Cells
+            noStroke();
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    const targetVal = grid[x][y];
+                    
+                    // Smooth exponential interpolation (lerp) eliminates visual strobing
+                    smoothGrid[x][y] = smoothGrid[x][y] * 0.76 + targetVal * 0.24;
+                    const val = smoothGrid[x][y];
+
+                    if (val > 0.01) {
+                        const age = ageGrid[x][y];
+                        
+                        // Eye-soft palette: Bioluminescent Mint (158) -> Cyan (185) -> Soft Amber (38)
+                        let hue = 158;
+                        if (age > 12) hue = 185;
+                        if (age > 40) hue = 38;
+
+                        let sat = 62;
+                        let bri = 92;
+
+                        // Soft surrounding glow
+                        fill(hue, sat, bri, val * 0.18);
+                        const glowSize = cellSize * (1.2 + val * 0.9);
+                        ellipse((x + 0.5) * cellSize, (y + 0.5) * cellSize, glowSize);
+
+                        // Core cell rectangle with rounded corners
+                        fill(hue, sat - 10, bri, val * 0.88);
+                        const cSize = cellSize * (0.52 + val * 0.48);
+                        const offset = (cellSize - cSize) / 2;
+                        rect(x * cellSize + offset, y * cellSize + offset, cSize, cSize, 1.2);
+                    }
+                }
+            }
+
+            // Render Center of Mass Nucleus Aura
+            if (cellCount > 0) {
+                const cx = (comX + 0.5) * cellSize;
+                const cy = (comY + 0.5) * cellSize;
+                noFill();
+                stroke(185, 70, 95, 0.25);
+                strokeWeight(1);
+                ellipse(cx, cy, 14 + Math.sin(frameCount * 0.08) * 4);
+            }
+
+            // Render Expanding Soft Ripples
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                let r = ripples[i];
+                noFill();
+                stroke(180, 50, 90, r.alpha * 0.45);
+                strokeWeight(1.2);
+                ellipse((r.x + 0.5) * cellSize, (r.y + 0.5) * cellSize, r.radius * cellSize * 2);
+
+                r.radius += 0.55;
+                r.alpha -= 0.024;
+                if (r.alpha <= 0) ripples.splice(i, 1);
+            }
+
+            // Render Floating Specimen Name Tags over Canvas
+            for (let i = floatingTags.length - 1; i >= 0; i--) {
+                let tag = floatingTags[i];
+                const px = (tag.gx + 0.5) * cellSize;
+                const py = (tag.gy + 0.5) * cellSize - 18 - tag.offsetY;
+
+                push();
+                translate(px, py);
+
+                // Background tag pill
+                rectMode(CENTER);
+                noStroke();
+                fill(215, 60, 10, tag.alpha * 0.85);
+                rect(0, 0, tag.name.length * 8 + 16, 20, 10);
+
+                stroke(185, 80, 90, tag.alpha * 0.5);
+                strokeWeight(1);
+                rect(0, 0, tag.name.length * 8 + 16, 20, 10);
+
+                // Text label
+                fill(185, 10, 100, tag.alpha);
+                noStroke();
+                textAlign(CENTER, CENTER);
+                textSize(10);
+                textFont('monospace');
+                text(tag.name, 0, 0);
+
+                pop();
+
+                tag.offsetY += 0.15;
+                tag.duration--;
+                if (tag.duration < 30) {
+                    tag.alpha -= 0.035;
+                }
+                if (tag.alpha <= 0 || tag.duration <= 0) {
+                    floatingTags.splice(i, 1);
+                }
+            }
+
+            // Glass Petri Dish Vignette Rim
+            noFill();
+            stroke(185, 30, 70, 0.35);
+            strokeWeight(2.5);
+            ellipse(width / 2, height / 2, DISH_RADIUS * 2 * cellSize);
+
+            stroke(200, 15, 95, 0.12);
+            strokeWeight(1);
+            ellipse(width / 2, height / 2, (DISH_RADIUS * 2 * cellSize) + 6);
+
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('val-cell-count').textContent = cellCount.toLocaleString();
+            document.getElementById('val-generation').textContent = generation.toLocaleString();
+
+            const stasisPct = Math.max(0, 100 - Math.round((stasisCounter / 18) * 100));
+            document.getElementById('val-stasis').textContent = `${stasisPct}%`;
+        }
+
+        function handlePointerInput() {
+            if (mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height) return;
+
+            const gx = Math.floor(mouseX / cellSize);
+            const gy = Math.floor(mouseY / cellSize);
+
+            if (isInsideDish(gx, gy)) {
+                // Add nutrient seed cluster
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const px = gx + dx;
+                        const py = gy + dy;
+                        if (isInsideDish(px, py) && Math.random() < 0.75) {
+                            grid[px][py] = 1;
+                            ageGrid[px][py] = 0;
+                        }
+                    }
+                }
+
+                // Name or re-name specimen on tap
+                triggerSpecimenNaming(gx, gy);
+            }
+        }
+
+        function mousePressed() { handlePointerInput(); }
+        function mouseDragged() { handlePointerInput(); }
+        function touchStarted() { handlePointerInput(); return false; }
+        function touchMoved() { handlePointerInput(); return false; }
+
+        function windowResized() {
+            const availableWidth = Math.min(380, window.innerWidth - 48);
+            resizeCanvas(availableWidth, availableWidth);
+            cellSize = width / GRID_SIZE;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Audio Toggle
+            const audioBtn = document.getElementById('btn-audio-toggle');
+            audioBtn.addEventListener('click', () => {
+                initAudioEngine();
+                isAudioOn = !isAudioOn;
+                if (isAudioOn) {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    audioBtn.textContent = 'ON';
+                    audioBtn.className = 'min-h-[36px] px-4 rounded-xl text-xs font-mono font-medium transition-all duration-300 bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.35)] active:scale-95';
+                    playCalmChime(528.0);
+                } else {
+                    audioBtn.textContent = 'OFF';
+                    audioBtn.className = 'min-h-[36px] px-4 rounded-xl text-xs font-mono font-medium transition-all duration-300 bg-slate-800/80 text-slate-400 hover:bg-slate-700 border border-slate-700/60 active:scale-95';
+                }
+            });
+
+            // Specimen Re-naming Button
+            document.getElementById('btn-rename-specimen').addEventListener('click', () => {
+                triggerSpecimenNaming();
+            });
+
+            // Pause / Play Toggle
+            const pauseBtn = document.getElementById('btn-toggle-pause');
+            pauseBtn.addEventListener('click', () => {
+                isRunning = !isRunning;
+                pauseBtn.textContent = isRunning ? '一時停止' : '再生';
+                pauseBtn.className = isRunning 
+                    ? 'min-h-[38px] px-4 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 active:scale-95'
+                    : 'min-h-[38px] px-4 rounded-xl text-xs font-medium bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all duration-200 active:scale-95';
+            });
+
+            // Manual Pulse Button
+            document.getElementById('btn-manual-pulse').addEventListener('click', () => {
+                triggerGeneticPulse("手動遺伝子刺激");
+            });
+
+            // Speed Control Slider
+            const fpsSlider = document.getElementById('slider-fps');
+            fpsSlider.addEventListener('input', (e) => {
+                targetFPS = parseInt(e.target.value, 10);
+                frameRate(targetFPS);
+                document.getElementById('fps-label').textContent = `${targetFPS} FPS`;
+            });
+        });
+    </script>
+</body>
+</html>
