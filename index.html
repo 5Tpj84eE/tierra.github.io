@@ -1,727 +1,910 @@
 <!DOCTYPE html>
-<html lang="ja" class="dark h-full bg-[#070b10] text-slate-100 select-none">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>人工生命1個体観察シャーレ - Ambient Specimen Chamber</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- p5.js CDN -->
+    <title>静かなシャーレ</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        bio: {
-                            bg: '#070b10',
-                            card: '#0d1520',
-                            border: 'rgba(255, 255, 255, 0.08)',
-                            mint: '#34d399',
-                            cyan: '#22d3ee',
-                            amber: '#fbbf24',
-                            violet: '#a78bfa'
-                        }
-                    },
-                    fontFamily: {
-                        mono: ['JetBrains Mono', 'Consolas', 'Courier New', 'monospace']
-                    }
-                }
-            }
-        }
-    </script>
     <style>
-        body {
-            background-color: #070b10;
-            color: #e2e8f0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
-            overflow-x: hidden;
-            touch-action: manipulation;
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #0d0d0d;
+            --text-main: #779977;
+            --text-dim: #445544;
+            --border-color: #1f281f;
         }
-
-        /* Glassmorphism Containers */
-        .glass-card {
-            background: rgba(13, 21, 32, 0.8);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7);
-        }
-
-        /* Petri Dish Outer Frame Glow */
-        .dish-frame {
-            position: relative;
-            box-shadow: 0 0 60px rgba(34, 211, 238, 0.08), inset 0 0 35px rgba(0, 0, 0, 0.85);
+        
+        * { box-sizing: border-box; }
+        
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
             touch-action: none;
         }
 
-        /* Smooth Slider */
-        input[type=range] {
-            -webkit-appearance: none;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            height: 5px;
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%; height: 100%;
         }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #22d3ee;
+
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 12px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            z-index: 10;
+        }
+        .stat-item { margin-right: 12px; white-space: nowrap; }
+
+        main {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        canvas { display: block; }
+
+        footer {
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+            height: 140px;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        #log-container {
+            flex-grow: 1;
+            padding: 8px 12px;
+            font-size: 11px;
+            overflow-y: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        .log-entry { margin: 2px 0; opacity: 0.8; }
+
+        #controls {
+            padding: 6px 12px;
+            border-top: 1px dotted var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        button {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--text-dim);
+            padding: 4px 16px;
+            font-family: inherit;
+            font-size: 12px;
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
         }
+        button:hover { background-color: rgba(119, 153, 119, 0.1); }
 
-        /* Ambient Indicator Pulse */
-        @keyframes softPulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.45; transform: scale(0.92); }
+        #extinct-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(5, 5, 5, 0.9);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            text-align: center;
+            display: none;
+            pointer-events: none;
         }
-        .pulse-indicator {
-            animation: softPulse 3.8s infinite ease-in-out;
-        }
+        #extinct-overlay h2 { margin: 0 0 12px 0; font-size: 16px; letter-spacing: 2px; }
+        #extinct-overlay p { margin: 4px 0; font-size: 12px; }
 
-        /* Floating Name Label Fade Animation */
-        @keyframes labelFadeIn {
-            0% { opacity: 0; transform: translateY(6px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-        .animate-label-in {
-            animation: labelFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        @media (max-width: 600px) {
+            header { font-size: 10px; padding: 6px 8px; }
+            .stat-item { margin-bottom: 4px; }
+            #log-container { font-size: 10px; padding: 6px 8px; }
+            footer { height: 120px; }
         }
     </style>
 </head>
-<body class="min-h-full flex flex-col justify-between">
+<body>
+    <div id="app-container">
+        <header>
+            <div class="stat-item">AGE: <span id="ui-species-age">00:00:00</span></div>
+            <div class="stat-item">BIRTHS: <span id="ui-total-births">0</span></div>
+            <div class="stat-item">ALIVE: <span id="ui-alive">0</span></div>
+            <div class="stat-item">BARRIERS: <span id="ui-barriers">0</span></div>
+            <div class="stat-item">THREAT: <span id="ui-threat">0%</span></div>
+        </header>
 
-    <header class="border-b border-slate-800/80 bg-[#090d14]/90 backdrop-blur-md px-4 sm:px-6 py-3 sticky top-0 z-50 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div id="status-dot" class="w-2.5 h-2.5 rounded-full bg-cyan-400 pulse-indicator shadow-[0_0_8px_#22d3ee]"></div>
-            <div>
-                <h1 class="text-sm sm:text-base font-medium tracking-wide text-slate-100 flex items-center gap-2">
-                    人工生命1個体観察シャーレ
-                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/70 text-cyan-300 border border-cyan-500/20 hidden sm:inline-block">
-                        Ambient Specimen
-                    </span>
-                </h1>
+        <main id="canvas-wrapper">
+            <div id="extinct-overlay">
+                <h2>SPECIES STATUS: EXTINCT</h2>
+                <p>FINAL AGE: <span id="extinct-age"></span></p>
+                <p>TOTAL BIRTHS: <span id="extinct-births"></span></p>
             </div>
-        </div>
-        <div class="text-xs font-mono flex items-center gap-2">
-            <span class="text-slate-400">個体:</span>
-            <span id="header-specimen-name" class="text-cyan-300 font-bold bg-cyan-950/40 px-2.5 py-0.5 rounded-lg border border-cyan-500/20 animate-label-in">
-                未命名
-            </span>
-        </div>
-    </header>
+        </main>
 
-    <main class="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-        
-        <!-- Petri Dish Viewport -->
-        <section class="lg:col-span-7 flex flex-col items-center justify-center">
-            <div class="glass-card p-4 sm:p-6 rounded-3xl w-full flex flex-col items-center justify-center relative">
-                
-                <!-- p5 Canvas Attachment Container -->
-                <div id="p5-canvas-holder" class="dish-frame rounded-full overflow-hidden my-1 flex justify-center items-center cursor-pointer">
-                    <!-- Canvas inserted dynamically by p5 -->
-                </div>
-
-                <!-- Interaction Hint -->
-                <div class="w-full max-w-sm flex justify-between items-center text-[11px] font-mono text-slate-400 mt-3 px-2">
-                    <span class="flex items-center gap-1 text-cyan-400/90">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
-                        タップ/クリック: 個体を命名＆刺激
-                    </span>
-                    <span id="header-status-text" class="text-emerald-400">状態: 安定共鳴</span>
-                </div>
+        <footer>
+            <div id="log-container"></div>
+            <div id="controls">
+                <button id="btn-reset">SYSTEM RESET</button>
             </div>
-        </section>
-
-        <!-- Sidebar Telemetry & Controls -->
-        <section class="lg:col-span-5 flex flex-col gap-4">
-            
-            <!-- Real-time Telemetry Panel -->
-            <div class="glass-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3">
-                <div class="flex justify-between items-center text-xs font-medium text-slate-400 border-b border-slate-800/80 pb-2">
-                    <span>個体生体計測 (Telemetry)</span>
-                    <span class="text-cyan-400 font-mono text-[11px]">CHAMBER #01</span>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2.5 font-mono">
-                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
-                        <div class="text-[10px] text-slate-400 mb-0.5">個体名 (Name)</div>
-                        <div class="text-sm font-bold text-cyan-300 truncate" id="val-specimen-name">未命名</div>
-                    </div>
-                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
-                        <div class="text-[10px] text-slate-400 mb-0.5">細胞質量 (Mass)</div>
-                        <div class="text-lg font-bold text-emerald-400" id="val-cell-count">0</div>
-                    </div>
-                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
-                        <div class="text-[10px] text-slate-400 mb-0.5">経過世代 (Gen)</div>
-                        <div class="text-lg font-bold text-slate-200" id="val-generation">0</div>
-                    </div>
-                    <div class="bg-slate-950/60 border border-slate-800/60 p-2.5 rounded-xl">
-                        <div class="text-[10px] text-slate-400 mb-0.5">形態安定度 (Stasis)</div>
-                        <div class="text-lg font-bold text-teal-400" id="val-stasis">100%</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Ambient Controls Panel -->
-            <div class="glass-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3.5">
-                
-                <!-- Audio Switch -->
-                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                    <div class="flex flex-col">
-                        <span class="text-xs font-medium text-slate-200">アンビエントサウンド</span>
-                        <span class="text-[10px] text-slate-400">432Hz Healing Frequency Synth</span>
-                    </div>
-                    <button id="btn-audio-toggle" class="min-h-[36px] px-4 rounded-xl text-xs font-mono font-medium transition-all duration-300 bg-slate-800/80 text-slate-400 hover:bg-slate-700 border border-slate-700/60 active:scale-95">
-                        OFF
-                    </button>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="grid grid-cols-2 gap-2.5">
-                    <button id="btn-rename-specimen" class="min-h-[42px] py-2 px-3 rounded-xl text-xs font-medium bg-cyan-500/90 hover:bg-cyan-400 text-slate-950 transition-all duration-200 shadow-[0_0_15px_rgba(34,211,238,0.2)] active:scale-95 flex items-center justify-center gap-1.5">
-                        🏷️ 個体を再命名
-                    </button>
-                    <button id="btn-manual-pulse" class="min-h-[42px] py-2 px-3 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5">
-                        ✨ 遺伝子変異刺激
-                    </button>
-                </div>
-
-                <!-- Play/Pause & Speed -->
-                <div class="flex items-center gap-3 pt-1">
-                    <button id="btn-toggle-pause" class="min-h-[38px] px-4 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 active:scale-95">
-                        一時停止
-                    </button>
-                    <div class="flex-1 flex flex-col gap-1 text-xs font-mono text-slate-400">
-                        <div class="flex justify-between items-center text-[10px]">
-                            <span>進行速度</span>
-                            <span id="fps-label" class="text-cyan-400">12 FPS</span>
-                        </div>
-                        <input type="range" id="slider-fps" min="4" max="24" value="12" class="w-full accent-cyan-400 cursor-pointer">
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer -->
-    <footer class="border-t border-slate-800/40 py-2.5 text-center text-[11px] font-mono text-slate-500">
-        人工生命1個体観察シャーレ &bull; Specimen Observation Chamber &bull; Anti-Flicker Engine
-    </footer>
+        </footer>
+    </div>
 
     <script>
-        // Grid & Simulation Dimensions
-        const GRID_SIZE = 80;
-        const DISH_RADIUS = 36;
-        const CENTER = GRID_SIZE / 2;
+        // --- 設定パラメータ ---
+        const CONFIG = {
+            dotSize: 6,
+            tickInterval: 150,
+            maxEntities: 200,
+            localDensityRadius: 60,
+            localDensityMax: 6,
+            matureAge: 12000,
+            splitChance: 0.08,
+            minLife: 40000,
+            maxLife: 90000,
+            maxLogs: 8,
+            mutationRate: 0.08,
 
-        // Cellular Automaton Matrices
-        let grid = new Array(GRID_SIZE).fill(0).map(() => new Uint8Array(GRID_SIZE));
-        let nextGrid = new Array(GRID_SIZE).fill(0).map(() => new Uint8Array(GRID_SIZE));
-        let ageGrid = new Array(GRID_SIZE).fill(0).map(() => new Uint16Array(GRID_SIZE));
-        
-        // Anti-Flicker Interpolation Grid (Smooth lerp for eye-comfort)
-        let smoothGrid = new Array(GRID_SIZE).fill(0).map(() => new Float32Array(GRID_SIZE));
+            longPressDuration: 700,
 
-        // State Variables
-        let generation = 0;
-        let cellCount = 0;
-        let mutationCount = 0;
-        let stasisCounter = 0;
-        let historyHashes = [];
-        let comX = CENTER; // Center of Mass X
-        let comY = CENTER; // Center of Mass Y
-        let isRunning = true;
-        let targetFPS = 12;
+            maxEnemies: 6,
+            enemySpeed: 6,
+            enemyLifeSpan: 35000,
+            enemyEffectRadius: 35,
+            enemyMaxHp: 80,
+            enemyDamagePerTick: 2500,
 
-        // Specimen Naming Database
-        const NAME_PREFIXES = ["ルミナ", "ゼファー", "ネブラ", "フィリア", "アルヴァ", "エーテル", "シリウス", "クロノス", "ヴェラ", "アストラ", "オリオン", "セルラ", "ノヴァ", "リブラ", "フェニックス", "ステラ"];
-        const NAME_SUFFIXES = ["アストラ", "セレネ", "ソラリス", "アイリス", "エテール", "アクア", "ルクス", "ブリーズ", "エコー", "プリズム", "ヴォイド", "ハーモニー", "ネビュラ", "プラズマ"];
-        const NAME_NUMERALS = ["-01", "-07", "-12", "-IV", "-IX", "-XII", "-42", "-77", "-α", "-Ω", "-III", "-VI"];
+            strongEnemyHp: 180,
+            strongEnemyLifeSpan: 60000,
+            strongEnemyRadius: 55,
+            strongEnemySpeed: 3,
 
-        let currentSpecimenName = "未命名";
+            detectRadius: 150,
+            baseAttackPower: 12,
+            killBonusLife: 12000,
 
-        function generateRandomName() {
-            const pref = NAME_PREFIXES[Math.floor(Math.random() * NAME_PREFIXES.length)];
-            const suff = NAME_SUFFIXES[Math.floor(Math.random() * NAME_SUFFIXES.length)];
-            const num = NAME_NUMERALS[Math.floor(Math.random() * NAME_NUMERALS.length)];
-            return `${pref}・${suff}${num}`;
+            maxBarriers: 25,
+            barrierHp: 200,
+            barrierBuildCooldown: 3000,
+            dangerMemoryDuration: 45000
+        };
+
+        const HUE_PALETTES = [140, 165, 195, 210, 270, 300, 45, 25];
+
+        const SHAPE_TYPES = [
+            [[[2]], [[0,1,0],[1,2,1],[0,1,0]], [[1,1,0],[1,2,1],[0,1,1]], [[0,1,1,0],[1,1,2,0],[0,2,1,1],[0,0,1,1]], [[1,1,0,0,1],[1,1,2,1,0],[0,2,2,1,0],[0,0,1,1,1],[1,0,0,1,1]]],
+            [[[2]], [[1,1,1],[1,2,1],[1,1,1]], [[1,1,1],[1,2,1],[1,1,1]], [[0,1,1,0],[1,2,2,1],[1,2,2,1],[0,1,1,0]], [[1,1,1,1,1],[1,0,2,0,1],[1,2,2,2,1],[1,0,2,0,1],[1,1,1,1,1]]],
+            [[[2]], [[0,1,0],[1,2,1],[0,1,0]], [[0,1,0],[1,2,1],[0,1,0]], [[0,1,1,0],[1,2,2,1],[1,2,2,1],[0,1,1,0]], [[0,0,1,0,0],[0,1,2,1,0],[1,2,2,2,1],[0,1,2,1,0],[0,0,1,0,0]]],
+            [[[2]], [[0,1,0],[1,2,1],[0,1,0]], [[1,0,1],[0,2,0],[1,0,1]], [[1,0,0,1],[0,2,2,0],[0,2,2,0],[1,0,0,1]], [[0,1,0,1,0],[1,1,2,1,1],[0,2,2,2,0],[1,1,2,1,1],[0,1,0,1,0]]],
+            [[[2]], [[2,1,2]], [[1,2,1],[1,2,1]], [[0,2,1,0],[1,1,1,1],[0,1,2,0]], [[1,2,1,0,0],[1,1,1,1,1],[0,0,1,2,1],[1,1,1,1,1]]],
+            [[[2]], [[1,0,1],[0,2,0]], [[1,0,1],[0,2,0],[0,1,0]], [[1,0,1,0],[0,1,0,0],[0,2,2,1]], [[1,0,1,0,1],[0,1,2,1,0],[0,0,2,0,0],[0,1,1,1,0]]],
+            [[[2]], [[1,1],[1,2]], [[1,1,1],[1,2,1],[1,1,1]], [[1,1,1,1],[1,2,2,1],[1,1,1,1]], [[1,1,1,1,1],[1,0,2,0,1],[1,0,2,0,1],[1,0,2,0,1],[1,1,1,1,1]]],
+            [[[2]], [[1,2],[0,1]], [[1,1,0],[0,2,1],[1,0,0]], [[0,1,1,0],[1,2,0,1],[1,0,2,1],[0,1,1,0]], [[0,1,1,1,0],[1,2,0,0,1],[1,0,2,0,1],[1,0,0,2,1],[0,1,1,1,0]]],
+            [[[2]], [[0,1,0],[1,2,1],[0,1,0]], [[0,1,0],[1,2,1],[0,1,0]], [[1,0,1],[0,2,0],[1,0,1]], [[1,0,1,0,1],[0,1,1,1,0],[1,1,2,1,1],[0,1,1,1,0],[1,0,1,0,1]]],
+            [[[2]], [[1,2,1]], [[1,2,1],[1,1,1]], [[1,1,1,1],[1,2,2,1],[1,1,1,1]], [[1,1,1,1,1],[1,1,2,1,1],[1,2,2,2,1],[1,1,1,1,1]]],
+            [[[2]], [[2,0,2]], [[2,1,2],[0,1,0]], [[2,1,2],[1,2,1]], [[2,1,2,1,2],[1,2,1,2,1],[2,1,2,1,2]]],
+            [[[2]], [[1,0,1],[0,2,0]], [[1,0,1],[1,2,1]], [[1,0,1],[1,0,1],[0,2,0]], [[1,0,0,0,1],[1,1,0,1,1],[0,1,2,1,0],[0,0,1,0,0]]]
+        ];
+
+        const ENEMY_PATTERNS_NORMAL = [
+            [[1,0,1,0,1],[0,1,0,1,0],[1,0,0,0,1],[0,1,0,1,0],[1,0,1,0,1]],
+            [[0,0,1,0,0],[0,1,1,1,0],[1,1,0,1,1],[0,1,1,1,0],[0,0,1,0,0]],
+            [[1,1,1,1,1],[1,0,0,0,1],[1,0,1,0,1],[1,0,0,0,1],[1,1,1,1,1]]
+        ];
+
+        const ENEMY_PATTERNS_STRONG = [
+            [[1,1,0,1,0,1,1],[1,0,1,0,1,0,1],[0,1,1,1,1,1,0],[1,0,1,0,1,0,1],[0,1,1,1,1,1,0],[1,0,1,0,1,0,1],[1,1,0,1,0,1,1]],
+            [[0,0,1,1,1,0,0],[0,1,0,1,0,1,0],[1,0,1,1,1,0,1],[1,1,1,0,1,1,1],[1,0,1,1,1,0,1],[0,1,0,1,0,1,0],[0,0,1,1,1,0,0]]
+        ];
+
+        let entities = [];
+        let enemies = [];
+        let barriers = [];
+        let dangerSpots = [];
+        let nests = [];
+
+        let simulationStartTime = 0;
+        let extinctTime = 0;
+        let isExtinct = false;
+        let totalBirths = 0;
+        let idCounter = 1;
+        let enemyIdCounter = 1;
+        let lastTickTime = 0;
+        let selectedEntityId = null;
+        let logs = [];
+        let globalThreatLevel = 0;
+
+        let touchPressStart = 0;
+        let touchPressPos = { x: 0, y: 0 };
+        let isPressing = false;
+
+        function formatTime(ms) {
+            let totalSeconds = Math.floor(Math.max(0, ms) / 1000);
+            let hours = Math.floor(totalSeconds / 3600);
+            let minutes = Math.floor((totalSeconds % 3600) / 60);
+            let seconds = totalSeconds % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }
 
-        // Floating On-Canvas Tag Systems
-        let floatingTags = [];
+        function generateId() { return String(idCounter++).padStart(3, '0'); }
+        function generateEnemyId(isStrong) { return `${isStrong ? 'S-' : 'E'}${String(enemyIdCounter++).padStart(2, '0')}`; }
 
-        function triggerSpecimenNaming(customX = null, customY = null) {
-            currentSpecimenName = generateRandomName();
-
-            // Target coordinates: custom point or current Center of Mass
-            const tx = (customX !== null) ? customX : comX;
-            const ty = (customY !== null) ? customY : comY;
-
-            // Spawn floating label in p5 canvas
-            floatingTags.push({
-                name: currentSpecimenName,
-                gx: tx,
-                gy: ty,
-                alpha: 1.0,
-                offsetY: 0,
-                duration: 110 // frames to remain visible
-            });
-
-            // Update UI DOM
-            document.getElementById('header-specimen-name').textContent = currentSpecimenName;
-            document.getElementById('val-specimen-name').textContent = currentSpecimenName;
-
-            // Visual ripple & audio chime
-            ripples.push({
-                x: tx,
-                y: ty,
-                radius: 1,
-                maxRadius: 26,
-                alpha: 0.85
-            });
-
-            playCalmChime(528.0);
+        function addLog(msg) {
+            let timeStr = formatTime(getSpeciesAge());
+            logs.push(`[${timeStr}] ${msg}`);
+            if (logs.length > CONFIG.maxLogs) logs.shift();
+            updateLogUI();
         }
 
-        let audioCtx = null;
-        let isAudioOn = false;
-        let masterGain = null;
-        let droneOscs = [];
-
-        function initAudioEngine() {
-            if (audioCtx) return;
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-
-            masterGain = audioCtx.createGain();
-            masterGain.gain.setValueAtTime(0.07, audioCtx.currentTime);
-            masterGain.connect(audioCtx.destination);
-
-            // 432Hz Deep Solfeggio Sine Drone Triad
-            const droneFreqs = [108.0, 162.0, 216.0, 288.0];
-            droneFreqs.forEach((freq, idx) => {
-                let osc = audioCtx.createOscillator();
-                let gain = audioCtx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.025 / (idx + 1), audioCtx.currentTime);
-
-                osc.connect(gain);
-                gain.connect(masterGain);
-                osc.start();
-                droneOscs.push({ osc, gain });
-            });
+        function recordDangerSpot(x, y) {
+            dangerSpots.push({ x: snapToGrid(x), y: snapToGrid(y), time: Date.now() });
         }
 
-        const PENTATONIC_SCALE = [432.0, 528.0, 648.0, 768.0, 864.0, 1056.0];
-        function playCalmChime(freq = null) {
-            if (!isAudioOn || !audioCtx) return;
-            try {
-                const chimeFreq = freq || PENTATONIC_SCALE[Math.floor(Math.random() * PENTATONIC_SCALE.length)];
-                let osc = audioCtx.createOscillator();
-                let gain = audioCtx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(chimeFreq, audioCtx.currentTime);
-
-                // Very smooth exponential envelope to avoid any harsh pops
-                gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.04, audioCtx.currentTime + 0.12);
-                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 3.4);
-
-                osc.connect(gain);
-                gain.connect(masterGain);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 3.5);
-            } catch(e) { console.error(e); }
+        function getSpeciesAge() {
+            if (isExtinct) return extinctTime - simulationStartTime;
+            return Date.now() - simulationStartTime;
         }
 
-        function isInsideDish(x, y) {
-            const dx = x - CENTER;
-            const dy = y - CENTER;
-            return (dx * dx + dy * dy) <= (DISH_RADIUS * DISH_RADIUS);
+        function snapToGrid(val) { return Math.floor(val / CONFIG.dotSize) * CONFIG.dotSize; }
+
+        class Barrier {
+            constructor(x, y) {
+                this.x = snapToGrid(x);
+                this.y = snapToGrid(y);
+                this.hp = CONFIG.barrierHp;
+                this.maxHp = CONFIG.barrierHp;
+                this.isDead = false;
+            }
+
+            draw() {
+                push();
+                noStroke();
+                let alphaRatio = this.hp / this.maxHp;
+                fill(40, 60, 80 * alphaRatio);
+                let d = CONFIG.dotSize;
+                rect(this.x - d, this.y - d, d * 3, d * 3);
+                fill(50, 80, 100 * alphaRatio);
+                rect(this.x, this.y, d, d);
+                pop();
+            }
         }
 
-        function stepSimulation() {
-            let newCellCount = 0;
-            let sumX = 0;
-            let sumY = 0;
+        class Entity {
+            constructor(x, y, parentColor = null, parentType = null) {
+                this.id = generateId();
+                this.bornTime = Date.now();
+                this.lifeSpan = random(CONFIG.minLife, CONFIG.maxLife);
+                this.x = snapToGrid(x);
+                this.y = snapToGrid(y);
+                this.isDead = false;
+                this.stage = 0;
+                this.isUnderAttack = false;
+                this.lastBuildTime = 0;
 
-            for (let x = 0; x < GRID_SIZE; x++) {
-                for (let y = 0; y < GRID_SIZE; y++) {
-                    if (!isInsideDish(x, y)) {
-                        nextGrid[x][y] = 0;
-                        ageGrid[x][y] = 0;
-                        continue;
+                let roll = random();
+                let builderChance = globalThreatLevel * 0.5 + 0.05;
+                let soldierChance = globalThreatLevel * 0.3 + 0.03;
+
+                this.isSoldier = false;
+                this.isBuilder = false;
+                this.isMutant = false;
+
+                if (roll < builderChance) {
+                    this.isBuilder = true;
+                } else if (roll < builderChance + soldierChance) {
+                    this.isSoldier = true;
+                } else if (random() < CONFIG.mutationRate) {
+                    this.isMutant = true;
+                }
+
+                if (parentType !== null && random() > 0.15) {
+                    this.typeIndex = parentType;
+                } else {
+                    this.typeIndex = floor(random(SHAPE_TYPES.length));
+                }
+
+                if (this.isBuilder) {
+                    this.col = { h: 45, s: 85, b: 90 };
+                    this.attackPower = CONFIG.baseAttackPower * 0.8;
+                    this.defenseRatio = 0.6;
+                } else if (this.isSoldier) {
+                    let soldierHues = [15, 35, 350, 280];
+                    this.col = { h: random(soldierHues), s: 85, b: 90 };
+                    this.attackPower = CONFIG.baseAttackPower * 3.0;
+                    this.defenseRatio = 0.4;
+                } else if (this.isMutant) {
+                    this.col = { h: random(360), s: 80, b: 85 };
+                    this.attackPower = CONFIG.baseAttackPower * 1.5;
+                    this.defenseRatio = 0.8;
+                } else if (parentColor) {
+                    this.col = {
+                        h: (parentColor.h + random(-15, 15) + 360) % 360,
+                        s: constrain(parentColor.s + random(-8, 8), 20, 60),
+                        b: constrain(parentColor.b + random(-8, 8), 45, 80)
+                    };
+                    this.attackPower = CONFIG.baseAttackPower;
+                    this.defenseRatio = 1.0;
+                } else {
+                    let baseH = random(HUE_PALETTES);
+                    this.col = { h: baseH, s: 40, b: 70 };
+                    this.attackPower = CONFIG.baseAttackPower;
+                    this.defenseRatio = 1.0;
+                }
+
+                totalBirths++;
+            }
+
+            get age() { return Date.now() - this.bornTime; }
+
+            updateShapeStage() {
+                let a = this.age;
+                if (a < 10000) this.stage = 0;
+                else if (a < 25000) this.stage = 1;
+                else if (a < 45000) this.stage = 2;
+                else if (a < 65000) this.stage = 3;
+                else this.stage = 4;
+            }
+
+            tick() {
+                if (this.isDead) return;
+
+                if (this.age > this.lifeSpan) {
+                    this.isDead = true;
+                    addLog(`個体 ${this.id} が自然死しました`);
+                    return;
+                }
+
+                this.updateShapeStage();
+                this.isUnderAttack = false;
+
+                if (this.isBuilder && Date.now() - this.lastBuildTime > CONFIG.barrierBuildCooldown) {
+                    this.tryBuildBarrier();
+                }
+
+                let nearestEnemy = null;
+                let minDist = CONFIG.detectRadius;
+
+                for (let enemy of enemies) {
+                    if (enemy.isDead) continue;
+                    let d = dist(this.x, this.y, enemy.x, enemy.y);
+                    if (d < minDist) {
+                        minDist = d;
+                        nearestEnemy = enemy;
+                    }
+                }
+
+                let speedStep = (this.isSoldier || this.isBuilder) ? CONFIG.dotSize * 2 : CONFIG.dotSize;
+
+                if (nearestEnemy) {
+                    let dx = nearestEnemy.x - this.x;
+                    let dy = nearestEnemy.y - this.y;
+                    
+                    if (this.isSoldier) {
+                        if (Math.abs(dx) > Math.abs(dy)) this.x += (dx > 0 ? speedStep : -speedStep);
+                        else this.y += (dy > 0 ? speedStep : -speedStep);
+                    } else {
+                        if (Math.abs(dx) > Math.abs(dy)) this.x -= (dx > 0 ? speedStep : -speedStep);
+                        else this.y -= (dy > 0 ? speedStep : -speedStep);
+                    }
+                } else {
+                    let targetSpot = null;
+                    if (this.isBuilder && dangerSpots.length > 0) {
+                        targetSpot = dangerSpots[dangerSpots.length - 1];
                     }
 
-                    // Count 8 neighbors
-                    let neighbors = 0;
-                    for (let dx = -1; dx <= 1; dx++) {
-                        for (let dy = -1; dy <= 1; dy++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-                                neighbors += grid[nx][ny];
-                            }
+                    if (targetSpot && dist(this.x, this.y, targetSpot.x, targetSpot.y) > 40) {
+                        let dx = targetSpot.x - this.x;
+                        let dy = targetSpot.y - this.y;
+                        if (Math.abs(dx) > Math.abs(dy)) this.x += (dx > 0 ? speedStep : -speedStep);
+                        else this.y += (dy > 0 ? speedStep : -speedStep);
+                    } else if (random() < 0.3) {
+                        let dir = random(['N', 'S', 'E', 'W']);
+                        if (dir === 'N') this.y -= speedStep;
+                        if (dir === 'S') this.y += speedStep;
+                        if (dir === 'E') this.x += speedStep;
+                        if (dir === 'W') this.x -= speedStep;
+                    }
+                }
+
+                this.x = constrain(snapToGrid(this.x), 20, width - 20);
+                this.y = constrain(snapToGrid(this.y), 20, height - 20);
+
+                if (this.age > CONFIG.matureAge && random() < CONFIG.splitChance) {
+                    this.attemptSplit();
+                }
+            }
+
+            tryBuildBarrier() {
+                if (barriers.length >= CONFIG.maxBarriers) return;
+
+                let hasNearbyBarrier = barriers.some(b => dist(this.x, this.y, b.x, b.y) < 30);
+                if (hasNearbyBarrier) return;
+
+                let isNearEnemy = enemies.some(e => dist(this.x, this.y, e.x, e.y) < 120);
+                let isNearDanger = dangerSpots.some(d => dist(this.x, this.y, d.x, d.y) < 80);
+
+                if (isNearEnemy || isNearDanger) {
+                    barriers.push(new Barrier(this.x, this.y));
+                    this.lastBuildTime = Date.now();
+                    addLog(`BUILDER ${this.id} が防壁を設置`);
+                }
+            }
+
+            attemptSplit() {
+                let neighbors = 0;
+                for (let e of entities) {
+                    if (e === this || e.isDead) continue;
+                    if (dist(this.x, this.y, e.x, e.y) < CONFIG.localDensityRadius) neighbors++;
+                }
+
+                if (entities.length >= CONFIG.maxEntities || neighbors >= CONFIG.localDensityMax) return;
+
+                let offsetX = random([-CONFIG.dotSize * 3, CONFIG.dotSize * 3]);
+                let offsetY = random([-CONFIG.dotSize * 3, CONFIG.dotSize * 3]);
+                let child = new Entity(this.x + offsetX, this.y + offsetY, this.col, this.typeIndex);
+                entities.push(child);
+                
+                let roleTag = child.isBuilder ? " [建築種:BUILDER]" : (child.isSoldier ? " [戦闘種:SOLDIER]" : (child.isMutant ? " [変異種]" : ""));
+                addLog(`個体 ${this.id} が分裂し、個体 ${child.id}${roleTag} が誕生`);
+            }
+
+            draw() {
+                noStroke();
+                
+                let shape = SHAPE_TYPES[this.typeIndex][this.stage];
+                let rows = shape.length;
+                let cols = shape[0].length;
+                let startX = this.x - snapToGrid((cols * CONFIG.dotSize) / 2);
+                let startY = this.y - snapToGrid((rows * CONFIG.dotSize) / 2);
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        let cellType = shape[r][c];
+                        if (cellType > 0) {
+                            if (this.isUnderAttack) fill(this.col.h, this.col.s * 0.2, this.col.b * 0.4);
+                            else fill(this.col.h, this.col.s, this.col.b);
+                            rect(startX + c * CONFIG.dotSize, startY + r * CONFIG.dotSize, CONFIG.dotSize, CONFIG.dotSize);
                         }
                     }
-
-                    const isAlive = grid[x][y] === 1;
-                    let willLive = false;
-
-                    // Standard Conway B3 / S23 Rules
-                    if (isAlive) {
-                        willLive = (neighbors === 2 || neighbors === 3);
-                    } else {
-                        willLive = (neighbors === 3);
-                    }
-
-                    nextGrid[x][y] = willLive ? 1 : 0;
-
-                    if (willLive) {
-                        newCellCount++;
-                        sumX += x;
-                        sumY += y;
-                        ageGrid[x][y] = isAlive ? Math.min(65535, ageGrid[x][y] + 1) : 0;
-                    } else {
-                        ageGrid[x][y] = 0;
-                    }
                 }
-            }
 
-            // Swap Buffer
-            for (let x = 0; x < GRID_SIZE; x++) {
-                for (let y = 0; y < GRID_SIZE; y++) {
-                    grid[x][y] = nextGrid[x][y];
+                let sz = CONFIG.dotSize;
+                if (this.isSoldier) {
+                    fill(this.col.h, 10, 95);
+                    rect(startX - sz, startY - sz, sz, sz);
+                    rect(startX + cols * sz, startY - sz, sz, sz);
+                } else if (this.isBuilder) {
+                    fill(45, 90, 100);
+                    rect(startX + (cols/2)*sz - sz/2, startY - sz, sz, sz);
                 }
-            }
-
-            generation++;
-            cellCount = newCellCount;
-
-            if (cellCount > 0) {
-                comX = sumX / cellCount;
-                comY = sumY / cellCount;
-            }
-
-            checkStasisAndInfiniteSurvival();
-        }
-
-        function checkStasisAndInfiniteSurvival() {
-            let hash = 0;
-            for (let x = 0; x < GRID_SIZE; x += 4) {
-                for (let y = 0; y < GRID_SIZE; y += 4) {
-                    hash = (hash + grid[x][y] * (x + y + 1)) % 100003;
-                }
-            }
-
-            if (cellCount < 14) {
-                stasisCounter += 4;
-            } else if (historyHashes.includes(hash)) {
-                stasisCounter++;
-            } else {
-                stasisCounter = Math.max(0, stasisCounter - 1);
-            }
-
-            historyHashes.push(hash);
-            if (historyHashes.length > 20) historyHashes.shift();
-
-            // Auto-trigger gentlest mutation pulse if frozen or extinct
-            if (stasisCounter >= 18) {
-                triggerGeneticPulse("自然遺伝子再共鳴");
-                stasisCounter = 0;
             }
         }
 
-        let ripples = [];
+        class Enemy {
+            constructor(x, y, isStrong = false) {
+                this.isStrong = isStrong;
+                this.id = generateEnemyId(isStrong);
+                this.bornTime = Date.now();
+                this.lifeSpan = isStrong ? CONFIG.strongEnemyLifeSpan : CONFIG.enemyLifeSpan;
+                this.x = snapToGrid(x);
+                this.y = snapToGrid(y);
+                this.isDead = false;
+                this.hp = isStrong ? CONFIG.strongEnemyHp : CONFIG.enemyMaxHp;
+                this.effectRadius = isStrong ? CONFIG.strongEnemyRadius : CONFIG.enemyEffectRadius;
 
-        function triggerGeneticPulse(reason = "遺伝子変異") {
-            mutationCount++;
-            playCalmChime();
+                if (isStrong) {
+                    this.patternIndex = floor(random(ENEMY_PATTERNS_STRONG.length));
+                    this.col = { h: random(280, 320), s: 80, b: 90 };
+                } else {
+                    this.patternIndex = floor(random(ENEMY_PATTERNS_NORMAL.length));
+                    this.col = { h: random(330, 360), s: 70, b: 85 };
+                }
+                this.dir = random(['N', 'S', 'E', 'W']);
+            }
 
-            const targetX = cellCount > 0 ? Math.round(comX) : CENTER;
-            const targetY = cellCount > 0 ? Math.round(comY) : CENTER;
+            get age() { return Date.now() - this.bornTime; }
 
-            // Spawn organic seed cluster near Center of Mass
-            const seedRadius = 4;
-            for (let dx = -seedRadius; dx <= seedRadius; dx++) {
-                for (let dy = -seedRadius; dy <= seedRadius; dy++) {
-                    const px = targetX + dx;
-                    const py = targetY + dy;
-                    if (isInsideDish(px, py) && Math.random() < 0.55) {
-                        grid[px][py] = 1;
-                        ageGrid[px][py] = 0;
+            tick() {
+                if (this.isDead) return;
+
+                if (this.age > this.lifeSpan) {
+                    this.isDead = true;
+                    addLog(`敵対勢力 ${this.id} が消滅しました`);
+                    return;
+                }
+
+                if (entities.length > 0) {
+                    let nearest = null;
+                    let minD = Infinity;
+                    for (let e of entities) {
+                        let d = dist(this.x, this.y, e.x, e.y);
+                        if (d < minD) { minD = d; nearest = e; }
+                    }
+                    if (nearest) {
+                        let dx = nearest.x - this.x;
+                        let dy = nearest.y - this.y;
+                        this.dir = (Math.abs(dx) > Math.abs(dy)) ? (dx > 0 ? 'E' : 'W') : (dy > 0 ? 'S' : 'N');
+                    }
+                }
+
+                let step = this.isStrong ? CONFIG.strongEnemySpeed * CONFIG.dotSize : CONFIG.enemySpeed * CONFIG.dotSize;
+                let nextX = this.x + (this.dir === 'E' ? step : (this.dir === 'W' ? -step : 0));
+                let nextY = this.y + (this.dir === 'S' ? step : (this.dir === 'N' ? -step : 0));
+
+                let hitBarrier = barriers.find(b => !b.isDead && dist(nextX, nextY, b.x, b.y) < 25);
+                if (hitBarrier) {
+                    hitBarrier.hp -= 20;
+                    if (hitBarrier.hp <= 0) hitBarrier.isDead = true;
+                    return;
+                }
+
+                this.x = constrain(snapToGrid(nextX), 20, width - 20);
+                this.y = constrain(snapToGrid(nextY), 20, height - 20);
+
+                let attackingEntities = [];
+                for (let e of entities) {
+                    if (e.isDead) continue;
+                    if (dist(this.x, this.y, e.x, e.y) < this.effectRadius) {
+                        globalThreatLevel = min(1.0, globalThreatLevel + 0.005);
+                        e.lifeSpan -= CONFIG.enemyDamagePerTick * e.defenseRatio;
+                        e.isUnderAttack = true;
+                        attackingEntities.push(e);
+
+                        recordDangerSpot(e.x, e.y);
+                    }
+                }
+
+                if (attackingEntities.length > 0) {
+                    let totalDamage = 0;
+                    for (let e of attackingEntities) totalDamage += e.attackPower;
+                    this.hp -= totalDamage;
+
+                    if (this.hp <= 0) {
+                        this.isDead = true;
+                        addLog(`【討伐成功】個体群が敵対勢力 ${this.id} を撃破`);
+                        globalThreatLevel = max(0, globalThreatLevel - 0.15);
+                        let bonus = this.isStrong ? CONFIG.killBonusLife * 2.5 : CONFIG.killBonusLife;
+                        for (let e of attackingEntities) e.lifeSpan += bonus;
                     }
                 }
             }
 
-            ripples.push({
-                x: targetX,
-                y: targetY,
-                radius: 1,
-                maxRadius: 28,
-                alpha: 0.8
-            });
+            draw() {
+                push();
+                noStroke();
+                let pattern = this.isStrong ? ENEMY_PATTERNS_STRONG[this.patternIndex] : ENEMY_PATTERNS_NORMAL[this.patternIndex];
+                let rows = pattern.length;
+                let cols = pattern[0].length;
+                let startX = this.x - snapToGrid((cols * CONFIG.dotSize) / 2);
+                let startY = this.y - snapToGrid((rows * CONFIG.dotSize) / 2);
 
-            // If unnamed yet, give name on pulse
-            if (currentSpecimenName === "未命名") {
-                triggerSpecimenNaming(targetX, targetY);
-            }
-
-            const statusElem = document.getElementById('header-status-text');
-            const dotElem = document.getElementById('status-dot');
-            statusElem.textContent = `状態: ${reason}`;
-            statusElem.className = 'text-violet-400';
-            dotElem.className = 'w-2.5 h-2.5 rounded-full bg-violet-400 pulse-indicator shadow-[0_0_8px_#a78bfa]';
-
-            setTimeout(() => {
-                if (isRunning) {
-                    statusElem.textContent = '状態: 安定共鳴';
-                    statusElem.className = 'text-emerald-400';
-                    dotElem.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 pulse-indicator shadow-[0_0_8px_#22d3ee]';
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        if (pattern[r][c] === 1) {
+                            fill(this.col.h, this.col.s, this.col.b);
+                            rect(startX + c * CONFIG.dotSize, startY + r * CONFIG.dotSize, CONFIG.dotSize, CONFIG.dotSize);
+                        }
+                    }
                 }
-            }, 3000);
+                pop();
+            }
         }
-
-        let cellSize = 5;
 
         function setup() {
-            const availableWidth = Math.min(380, window.innerWidth - 48);
-            const canvas = createCanvas(availableWidth, availableWidth);
-            canvas.parent('p5-canvas-holder');
+            let container = document.getElementById('canvas-wrapper');
+            let canvas = createCanvas(container.clientWidth, container.clientHeight);
+            canvas.parent(container);
+            colorMode(HSB, 360, 100, 100);
+            
+            document.getElementById('btn-reset').addEventListener('click', resetSimulation);
+            initSimulation();
+        }
 
-            cellSize = width / GRID_SIZE;
-            colorMode(HSB, 360, 100, 100, 1);
-            frameRate(targetFPS);
-
-            // Initialize initial living organism seed
-            for (let dx = -3; dx <= 3; dx++) {
-                for (let dy = -3; dy <= 3; dy++) {
-                    if (dx*dx + dy*dy <= 12 && Math.random() < 0.6) {
-                        grid[CENTER + dx][CENTER + dy] = 1;
-                    }
-                }
+        function initSimulation() {
+            entities = [];
+            enemies = [];
+            barriers = [];
+            dangerSpots = [];
+            nests = [];
+            totalBirths = 0;
+            idCounter = 1;
+            enemyIdCounter = 1;
+            simulationStartTime = Date.now();
+            isExtinct = false;
+            selectedEntityId = null;
+            isPressing = false;
+            logs = [];
+            globalThreatLevel = 0;
+            document.getElementById('extinct-overlay').style.display = 'none';
+            
+            for(let i = 0; i < 6; i++) {
+                let e = new Entity(width/2 + random(-60, 60), height/2 + random(-60, 60));
+                e.typeIndex = i % SHAPE_TYPES.length;
+                entities.push(e);
+                addLog(`初期個体 ${e.id} [TYPE-${e.typeIndex}] が発生しました`);
             }
+            updateDOM();
+        }
 
-            // Generate initial specimen name
-            currentSpecimenName = generateRandomName();
-            document.getElementById('header-specimen-name').textContent = currentSpecimenName;
-            document.getElementById('val-specimen-name').textContent = currentSpecimenName;
+        function resetSimulation() { initSimulation(); }
+
+        function windowResized() {
+            let container = document.getElementById('canvas-wrapper');
+            resizeCanvas(container.clientWidth, container.clientHeight);
         }
 
         function draw() {
-            if (isRunning) {
-                stepSimulation();
+            background(5);
+            
+            if (!isExtinct) {
+                let now = Date.now();
+                if (now - lastTickTime > CONFIG.tickInterval) {
+                    updateSimulation();
+                    lastTickTime = now;
+                }
             }
 
-            // Dark slate background with soft trailing effect
-            background(215, 35, 6, 0.42);
+            drawNests();
+            drawDangerSpots();
+            for (let b of barriers) b.draw();
+            for (let e of entities) e.draw();
+            for (let enemy of enemies) enemy.draw();
 
-            // Render Anti-Flicker Interpolated Cells
-            noStroke();
-            for (let x = 0; x < GRID_SIZE; x++) {
-                for (let y = 0; y < GRID_SIZE; y++) {
-                    const targetVal = grid[x][y];
-                    
-                    // Smooth exponential interpolation (lerp) eliminates visual strobing
-                    smoothGrid[x][y] = smoothGrid[x][y] * 0.76 + targetVal * 0.24;
-                    const val = smoothGrid[x][y];
+            drawSelectionUI();
+            drawLongPressChargeUI();
+            
+            if (frameCount % 10 === 0) updateDOM();
+        }
 
-                    if (val > 0.01) {
-                        const age = ageGrid[x][y];
-                        
-                        // Eye-soft palette: Bioluminescent Mint (158) -> Cyan (185) -> Soft Amber (38)
-                        let hue = 158;
-                        if (age > 12) hue = 185;
-                        if (age > 40) hue = 38;
+        function updateSimulation() {
+            if (enemies.length === 0 && globalThreatLevel > 0) {
+                globalThreatLevel = max(0, globalThreatLevel - 0.001);
+            }
 
-                        let sat = 62;
-                        let bri = 92;
+            let now = Date.now();
+            dangerSpots = dangerSpots.filter(d => now - d.time < CONFIG.dangerMemoryDuration);
 
-                        // Soft surrounding glow
-                        fill(hue, sat, bri, val * 0.18);
-                        const glowSize = cellSize * (1.2 + val * 0.9);
-                        ellipse((x + 0.5) * cellSize, (y + 0.5) * cellSize, glowSize);
+            for (let e of entities) e.tick();
+            for (let enemy of enemies) enemy.tick();
 
-                        // Core cell rectangle with rounded corners
-                        fill(hue, sat - 10, bri, val * 0.88);
-                        const cSize = cellSize * (0.52 + val * 0.48);
-                        const offset = (cellSize - cSize) / 2;
-                        rect(x * cellSize + offset, y * cellSize + offset, cSize, cSize, 1.2);
+            entities = entities.filter(e => !e.isDead);
+            enemies = enemies.filter(enemy => !enemy.isDead);
+            barriers = barriers.filter(b => !b.isDead);
+
+            detectNests();
+
+            if (selectedEntityId && !entities.find(e => e.id === selectedEntityId)) {
+                selectedEntityId = null;
+            }
+
+            if (entities.length === 0 && !isExtinct) {
+                triggerExtinction();
+            }
+        }
+
+        function detectNests() {
+            nests = [];
+            for (let i = 0; i < entities.length; i++) {
+                let count = 0;
+                let sumX = 0, sumY = 0;
+                for (let j = 0; j < entities.length; j++) {
+                    let d = dist(entities[i].x, entities[i].y, entities[j].x, entities[j].y);
+                    if (d < 50) {
+                        count++;
+                        sumX += entities[j].x;
+                        sumY += entities[j].y;
+                    }
+                }
+                if (count >= 5) {
+                    let centerX = snapToGrid(sumX / count);
+                    let centerY = snapToGrid(sumY / count);
+                    if (!nests.some(n => dist(n.x, n.y, centerX, centerY) < 40)) {
+                        nests.push({ x: centerX, y: centerY, count: count });
                     }
                 }
             }
 
-            // Render Center of Mass Nucleus Aura
-            if (cellCount > 0) {
-                const cx = (comX + 0.5) * cellSize;
-                const cy = (comY + 0.5) * cellSize;
-                noFill();
-                stroke(185, 70, 95, 0.25);
-                strokeWeight(1);
-                ellipse(cx, cy, 14 + Math.sin(frameCount * 0.08) * 4);
-            }
-
-            // Render Expanding Soft Ripples
-            for (let i = ripples.length - 1; i >= 0; i--) {
-                let r = ripples[i];
-                noFill();
-                stroke(180, 50, 90, r.alpha * 0.45);
-                strokeWeight(1.2);
-                ellipse((r.x + 0.5) * cellSize, (r.y + 0.5) * cellSize, r.radius * cellSize * 2);
-
-                r.radius += 0.55;
-                r.alpha -= 0.024;
-                if (r.alpha <= 0) ripples.splice(i, 1);
-            }
-
-            // Render Floating Specimen Name Tags over Canvas
-            for (let i = floatingTags.length - 1; i >= 0; i--) {
-                let tag = floatingTags[i];
-                const px = (tag.gx + 0.5) * cellSize;
-                const py = (tag.gy + 0.5) * cellSize - 18 - tag.offsetY;
-
-                push();
-                translate(px, py);
-
-                // Background tag pill
-                rectMode(CENTER);
-                noStroke();
-                fill(215, 60, 10, tag.alpha * 0.85);
-                rect(0, 0, tag.name.length * 8 + 16, 20, 10);
-
-                stroke(185, 80, 90, tag.alpha * 0.5);
-                strokeWeight(1);
-                rect(0, 0, tag.name.length * 8 + 16, 20, 10);
-
-                // Text label
-                fill(185, 10, 100, tag.alpha);
-                noStroke();
-                textAlign(CENTER, CENTER);
-                textSize(10);
-                textFont('monospace');
-                text(tag.name, 0, 0);
-
-                pop();
-
-                tag.offsetY += 0.15;
-                tag.duration--;
-                if (tag.duration < 30) {
-                    tag.alpha -= 0.035;
-                }
-                if (tag.alpha <= 0 || tag.duration <= 0) {
-                    floatingTags.splice(i, 1);
+            for (let nest of nests) {
+                for (let e of entities) {
+                    if (dist(e.x, e.y, nest.x, nest.y) < 40) {
+                        e.lifeSpan += 150;
+                    }
                 }
             }
+        }
 
-            // Glass Petri Dish Vignette Rim
+        // --- 拠点（NEST）のローポリ・カクカク描画処理 ---
+        function drawNests() {
+            push();
             noFill();
-            stroke(185, 30, 70, 0.35);
-            strokeWeight(2.5);
-            ellipse(width / 2, height / 2, DISH_RADIUS * 2 * cellSize);
-
-            stroke(200, 15, 95, 0.12);
+            stroke(150, 40, 40, 0.4);
             strokeWeight(1);
-            ellipse(width / 2, height / 2, (DISH_RADIUS * 2 * cellSize) + 6);
-
-            updateUI();
-        }
-
-        function updateUI() {
-            document.getElementById('val-cell-count').textContent = cellCount.toLocaleString();
-            document.getElementById('val-generation').textContent = generation.toLocaleString();
-
-            const stasisPct = Math.max(0, 100 - Math.round((stasisCounter / 18) * 100));
-            document.getElementById('val-stasis').textContent = `${stasisPct}%`;
-        }
-
-        function handlePointerInput() {
-            if (mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height) return;
-
-            const gx = Math.floor(mouseX / cellSize);
-            const gy = Math.floor(mouseY / cellSize);
-
-            if (isInsideDish(gx, gy)) {
-                // Add nutrient seed cluster
-                for (let dx = -1; dx <= 1; dx++) {
-                    for (let dy = -1; dy <= 1; dy++) {
-                        const px = gx + dx;
-                        const py = gy + dy;
-                        if (isInsideDish(px, py) && Math.random() < 0.75) {
-                            grid[px][py] = 1;
-                            ageGrid[px][py] = 0;
-                        }
-                    }
+            
+            for (let nest of nests) {
+                let radius = 30 + (sin(frameCount * 0.08) + 1) * 3;
+                let vertices = 8; // 八角形でローポリ感を演出
+                
+                beginShape();
+                for (let i = 0; i < vertices; i++) {
+                    let angle = (TWO_PI / vertices) * i;
+                    let vx = nest.x + cos(angle) * radius;
+                    let vy = nest.y + sin(angle) * radius;
+                    vertex(snapToGrid(vx), snapToGrid(vy));
                 }
+                endShape(CLOSE);
 
-                // Name or re-name specimen on tap
-                triggerSpecimenNaming(gx, gy);
+                let d = CONFIG.dotSize;
+                fill(150, 40, 40, 0.3);
+                noStroke();
+                rect(nest.x - d/2, nest.y - d/2, d, d);
+            }
+            pop();
+        }
+
+        function drawDangerSpots() {
+            push();
+            noStroke();
+            fill(350, 80, 70, 0.15);
+            for (let d of dangerSpots) {
+                rect(d.x - 10, d.y - 10, 20, 20);
+            }
+            pop();
+        }
+
+        function triggerExtinction() {
+            isExtinct = true;
+            extinctTime = Date.now();
+            addLog("生命活動停止。絶滅を確認。");
+            document.getElementById('extinct-overlay').style.display = 'block';
+            document.getElementById('extinct-age').innerText = formatTime(extinctTime - simulationStartTime);
+            document.getElementById('extinct-births').innerText = totalBirths;
+            updateDOM();
+        }
+
+        function drawSelectionUI() {
+            if (!selectedEntityId) return;
+            let target = entities.find(e => e.id === selectedEntityId);
+            if (!target) return;
+
+            push();
+            stroke(0, 0, 50);
+            strokeWeight(1);
+            noFill();
+            let sz = CONFIG.dotSize * 8;
+            rectMode(CENTER);
+            rect(target.x, target.y, sz, sz);
+
+            fill(0, 0, 70);
+            noStroke();
+            textSize(10);
+            textAlign(LEFT, TOP);
+            let labelX = target.x + sz/2 + 4;
+            let labelY = target.y - sz/2;
+
+            let roleStr = target.isBuilder ? "BUILDER" : (target.isSoldier ? "SOLDIER" : (target.isMutant ? "MUTANT" : "STANDARD"));
+            text(`ID:${target.id} [${roleStr}]`, labelX, labelY);
+            text(`TYPE:T-${target.typeIndex}`, labelX, labelY + 12);
+            text(`ATK:${target.attackPower}`, labelX, labelY + 24);
+            pop();
+        }
+
+        function drawLongPressChargeUI() {
+            if (!isPressing || isExtinct) return;
+
+            let elapsed = millis() - touchPressStart;
+            let progress = constrain(elapsed / CONFIG.longPressDuration, 0, 1);
+
+            push();
+            noStroke();
+            fill(300, 75, 85);
+            let steps = 4;
+            let currentStep = Math.floor(progress * steps); 
+            let gridOffset = (4 - currentStep) * CONFIG.dotSize * 2; 
+
+            let centerX = snapToGrid(touchPressPos.x);
+            let centerY = snapToGrid(touchPressPos.y);
+            let dSize = CONFIG.dotSize;
+
+            rect(centerX - gridOffset, centerY - gridOffset, dSize, dSize);
+            rect(centerX + gridOffset, centerY - gridOffset, dSize, dSize);
+            rect(centerX - gridOffset, centerY + gridOffset, dSize, dSize);
+            rect(centerX + gridOffset, centerY + gridOffset, dSize, dSize);
+            rect(centerX, centerY, dSize, dSize);
+
+            if (progress >= 1.0) {
+                spawnEnemyAt(touchPressPos.x, touchPressPos.y, true);
+                isPressing = false;
+            }
+            pop();
+        }
+
+        function mousePressed() {
+            if (isExtinct) return;
+            if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+                touchPressStart = millis();
+                touchPressPos = { x: mouseX, y: mouseY };
+                isPressing = true;
             }
         }
 
-        function mousePressed() { handlePointerInput(); }
-        function mouseDragged() { handlePointerInput(); }
-        function touchStarted() { handlePointerInput(); return false; }
-        function touchMoved() { handlePointerInput(); return false; }
+        function mouseReleased() {
+            if (!isPressing || isExtinct) {
+                isPressing = false;
+                return;
+            }
 
-        function windowResized() {
-            const availableWidth = Math.min(380, window.innerWidth - 48);
-            resizeCanvas(availableWidth, availableWidth);
-            cellSize = width / GRID_SIZE;
+            let pressDuration = millis() - touchPressStart;
+            isPressing = false;
+
+            if (pressDuration < CONFIG.longPressDuration) {
+                let tapRadius = 20;
+
+                let closestEntity = null;
+                let minEntityDist = tapRadius;
+
+                for (let e of entities) {
+                    let d = dist(mouseX, mouseY, e.x, e.y);
+                    if (d < minEntityDist) {
+                        minEntityDist = d;
+                        closestEntity = e;
+                    }
+                }
+
+                if (closestEntity) {
+                    selectedEntityId = (selectedEntityId === closestEntity.id) ? null : closestEntity.id;
+                    return;
+                }
+
+                for (let enemy of enemies) {
+                    if (dist(mouseX, mouseY, enemy.x, enemy.y) < tapRadius) return;
+                }
+
+                spawnEnemyAt(mouseX, mouseY, false);
+            }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Audio Toggle
-            const audioBtn = document.getElementById('btn-audio-toggle');
-            audioBtn.addEventListener('click', () => {
-                initAudioEngine();
-                isAudioOn = !isAudioOn;
-                if (isAudioOn) {
-                    if (audioCtx.state === 'suspended') audioCtx.resume();
-                    audioBtn.textContent = 'ON';
-                    audioBtn.className = 'min-h-[36px] px-4 rounded-xl text-xs font-mono font-medium transition-all duration-300 bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.35)] active:scale-95';
-                    playCalmChime(528.0);
-                } else {
-                    audioBtn.textContent = 'OFF';
-                    audioBtn.className = 'min-h-[36px] px-4 rounded-xl text-xs font-mono font-medium transition-all duration-300 bg-slate-800/80 text-slate-400 hover:bg-slate-700 border border-slate-700/60 active:scale-95';
-                }
-            });
+        function spawnEnemyAt(x, y, isStrong) {
+            if (enemies.length >= CONFIG.maxEnemies) return;
 
-            // Specimen Re-naming Button
-            document.getElementById('btn-rename-specimen').addEventListener('click', () => {
-                triggerSpecimenNaming();
-            });
+            let enemy = new Enemy(x, y, isStrong);
+            enemies.push(enemy);
 
-            // Pause / Play Toggle
-            const pauseBtn = document.getElementById('btn-toggle-pause');
-            pauseBtn.addEventListener('click', () => {
-                isRunning = !isRunning;
-                pauseBtn.textContent = isRunning ? '一時停止' : '再生';
-                pauseBtn.className = isRunning 
-                    ? 'min-h-[38px] px-4 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 active:scale-95'
-                    : 'min-h-[38px] px-4 rounded-xl text-xs font-medium bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all duration-200 active:scale-95';
-            });
+            if (isStrong) {
+                addLog(`【警告】強力な敵対勢力 ${enemy.id} が出現`);
+            } else {
+                addLog(`敵対勢力 ${enemy.id} が出現`);
+            }
+            selectedEntityId = null;
+        }
 
-            // Manual Pulse Button
-            document.getElementById('btn-manual-pulse').addEventListener('click', () => {
-                triggerGeneticPulse("手動遺伝子刺激");
-            });
+        function updateDOM() {
+            document.getElementById('ui-species-age').innerText = formatTime(getSpeciesAge());
+            document.getElementById('ui-total-births').innerText = totalBirths;
+            document.getElementById('ui-alive').innerText = entities.length;
+            document.getElementById('ui-barriers').innerText = barriers.length;
+            document.getElementById('ui-threat').innerText = `${Math.floor(globalThreatLevel * 100)}%`;
+        }
 
-            // Speed Control Slider
-            const fpsSlider = document.getElementById('slider-fps');
-            fpsSlider.addEventListener('input', (e) => {
-                targetFPS = parseInt(e.target.value, 10);
-                frameRate(targetFPS);
-                document.getElementById('fps-label').textContent = `${targetFPS} FPS`;
-            });
-        });
+        function updateLogUI() {
+            let container = document.getElementById('log-container');
+            container.innerHTML = '';
+            for (let i = 0; i < logs.length; i++) {
+                let div = document.createElement('div');
+                div.className = 'log-entry';
+                div.innerText = logs[i];
+                container.appendChild(div);
+            }
+        }
     </script>
 </body>
 </html>
