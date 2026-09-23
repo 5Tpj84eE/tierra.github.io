@@ -16,9 +16,9 @@
             --accent-red: #cc5555;
             --accent-cyan: #55aaaa;
         }
-        
+
         * { box-sizing: border-box; }
-        
+
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: var(--bg-color);
@@ -234,12 +234,12 @@
 <body>
     <div id="app-container">
         <header>
-            <div class="stat-item">経過時間: <span id="ui-species-age">00:00:00</span></div>
-            <div class="stat-item time-display">時刻: <span id="ui-time">00:00 (昼)</span></div>
-            <div class="stat-item">累計誕生: <span id="ui-total-births">0</span></div>
-            <div class="stat-item">生存数: <span id="ui-alive">0</span></div>
+            <div class="stat-item"><span id="ui-species-age">00:00:00</span></div>
+            <div class="stat-item time-display"><span id="ui-time">00:00 (昼)</span></div>
+            <div class="stat-item">累計<span id="ui-total-births">0</span></div>
+            <div class="stat-item">生存<span id="ui-alive">0</span></div>
             <div class="stat-item tooltip-container">
-                環境状態: <span id="ui-env">安定</span> ⓘ
+                環境: <span id="ui-env">安定</span> ⓘ
                 <div class="tooltip-content" id="ui-env-desc">平常のサイクル。</div>
             </div>
         </header>
@@ -256,7 +256,7 @@
             <div id="log-container"></div>
             <button id="btn-log-bottom" type="button">最下部に戻る ↓</button>
             <div id="controls">
-                <button id="btn-guide">生命の種類と世界の理</button>
+                <button id="btn-guide">人工生命の種類と特徴</button>
                 <button id="btn-reset">システムリセット</button>
             </div>
         </footer>
@@ -264,10 +264,10 @@
         <div id="guide-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>【観測記録】生命の役職と生態</h2>
+                    <h2>人工生命の種類と特徴</h2>
                     <button class="close-btn" id="btn-close-modal">閉じる [X]</button>
                 </div>
-                
+
                 <div class="sub-title">【基礎・統率型】</div>
                 <div class="type-card">
                     <div class="type-title"><span class="badge" style="background:#55aa77;"></span> 標準型 [STANDARD]</div>
@@ -287,7 +287,7 @@
                     <div class="type-title"><span class="badge" style="background:#ff99aa;"></span> 運搬・介護型 [HEALER]</div>
                     <div class="type-desc">白みがかったピンクの個体。巣（Core）からエネルギーを引き出し、死にかけの仲間や前線の戦闘型の元へ走って直接回復を行う。</div>
                 </div>
-                
+
                 <div class="sub-title">【防衛・終末型】</div>
                 <div class="type-card">
                     <div class="type-title"><span class="badge" style="background:#d4af37;"></span> 建築型 [BUILDER]</div>
@@ -318,7 +318,7 @@
         const CONFIG = {
             dotSize: 6,
             tickInterval: 150,
-            targetPopulation: 25, 
+            targetPopulation: 25,
             localDensityRadius: 60,
             matureAge: 12000,
             splitChance: 0.04,
@@ -461,7 +461,7 @@
                 this.id = 'CRYSTAL-' + Math.random().toString(36).substring(2, 6).toUpperCase();
             }
             tick() {
-                if (envState === "酸の雨") this.bornTime -= 50; 
+                if (envState === "酸の雨") this.bornTime -= 50;
                 if (Date.now() - this.bornTime > this.lifeSpan) {
                     this.isDead = true;
                     if (envState === "酸の雨") {
@@ -497,7 +497,7 @@
                     for (let e of entities) {
                         if (e.isDead || e.role === "HEALER") continue;
                         if ((e.lifeSpan - e.age) < 60000 && dist(this.x, this.y, e.x, e.y) < 100) {
-                            e.lifeSpan += 4500; this.energy -= 4500; break; 
+                            e.lifeSpan += 4500; this.energy -= 4500; break;
                         }
                     }
                 }
@@ -542,7 +542,7 @@
 
         class WeatherParticle {
             constructor(type) {
-                this.type = type; 
+                this.type = type;
                 this.x = random(width); this.y = random(height);
                 this.life = type === "acid" ? random(20, 50) : random(100, 300);
             }
@@ -574,7 +574,7 @@
                     rect(this.x - r, this.y + r, d, d); rect(this.x + r, this.y + r, d, d);
                 }
                 let shadowSize = Math.floor(((5 - Math.floor(this.timer / 20)) * (this.radius / 5)) / d) * d;
-                fill(0, 80, 70); 
+                fill(0, 80, 70);
                 rect(this.x - shadowSize, this.y - shadowSize, shadowSize * 2, shadowSize * 2);
                 pop();
             }
@@ -588,7 +588,7 @@
                 this.x = x; this.y = y; this.vx = 0; this.vy = 0;
                 this.isDead = false; this.stage = 0; this.isUnderAttack = false;
                 this.lastBuildTime = 0; this.hasNutrient = false; this.carryEnergy = 0;
-                this.intent = "周囲を探索中"; 
+                this.intent = "周囲を探索中";
                 this.assignRole(parentColor);
                 this.typeIndex = (parentType !== null && random() > 0.15) ? parentType : floor(random(SHAPE_TYPES.length));
                 totalBirths++;
@@ -597,7 +597,7 @@
             assignRole(parentColor) {
                 let roll = random();
                 let bC = globalThreatLevel * 0.2 + 0.05, sC = globalThreatLevel * 0.2 + 0.05, gC = 0.15, hC = 0.06, scC = 0.05, cmdC = 0.03, culC = 0.02;
-                
+
                 if (roll < bC) this.role = "BUILDER";
                 else if (roll < bC + sC) this.role = "SOLDIER";
                 else if (roll < bC + sC + gC) this.role = "GATHERER";
@@ -610,8 +610,8 @@
                 if (random() < CONFIG.mutationRate) this.role = "MUTANT";
 
                 let def = ROLES[this.role];
-                this.col = (parentColor && this.role === "STANDARD") ? 
-                    { h: (parentColor.h + random(-15, 15) + 360) % 360, s: constrain(parentColor.s + random(-8, 8), 20, 60), b: constrain(parentColor.b + random(-8, 8), 45, 80) } 
+                this.col = (parentColor && this.role === "STANDARD") ?
+                    { h: (parentColor.h + random(-15, 15) + 360) % 360, s: constrain(parentColor.s + random(-8, 8), 20, 60), b: constrain(parentColor.b + random(-8, 8), 45, 80) }
                     : def.color();
                 this.attackPower = CONFIG.baseAttackPower * def.atk;
                 this.defenseRatio = def.def;
@@ -631,7 +631,7 @@
                     addLog(`個体 ${this.id} が寿命を迎え、生命の結晶を残しました`); return;
                 }
 
-                if (envState === "極夜") this.lifeSpan -= 50; 
+                if (envState === "極夜") this.lifeSpan -= 50;
                 if (enemies.length < CONFIG.maxEnemies && random() < CONFIG.turnToEnemyChance) {
                     this.isDead = true; enemies.push(new Enemy(this.x, this.y, false));
                     addLog(`【致命的変異】個体 ${this.id} が敵対勢力に変異しました！`);
@@ -640,7 +640,7 @@
 
                 this.updateShapeStage();
                 this.isUnderAttack = false;
-                this.intent = "活動中"; 
+                this.intent = "活動中";
 
                 this.checkNutrientEat();
                 this.shareEnergyWithNeighbors();
@@ -655,7 +655,7 @@
 
                 let targetSpot = null, isFleeing = false;
                 if (nearestEnemy) {
-                    if (this.role === "SOLDIER") { targetSpot = nearestEnemy; this.intent = "外敵を迎撃中"; } 
+                    if (this.role === "SOLDIER") { targetSpot = nearestEnemy; this.intent = "外敵を迎撃中"; }
                     else { isFleeing = true; targetSpot = nearestEnemy; this.intent = "外敵から逃走中"; }
                 } else { targetSpot = this.findRoleTarget(); }
 
@@ -713,7 +713,7 @@
 
                 if (this.age > CONFIG.matureAge) {
                     let popRatio = entities.length / CONFIG.targetPopulation;
-                    let spawnMultiplier = max(0, 1.2 - popRatio); 
+                    let spawnMultiplier = max(0, 1.2 - popRatio);
                     if (envState === "豊穣") spawnMultiplier *= 1.5;
                     if (envState === "大干ばつ") spawnMultiplier *= 0.1;
                     if (envState === "酸の雨") spawnMultiplier *= 0.5;
@@ -727,7 +727,7 @@
             findRoleTarget() {
                 if (envState === "極夜" && cores.length > 0) {
                     let closest = cores.reduce((a, b) => dist(this.x, this.y, a.x, a.y) < dist(this.x, this.y, b.x, b.y) ? a : b);
-                    if (dist(this.x, this.y, closest.x, closest.y) > 40) { this.intent = "巣へ避難中"; return closest; } 
+                    if (dist(this.x, this.y, closest.x, closest.y) > 40) { this.intent = "巣へ避難中"; return closest; }
                     else { this.intent = "極夜を耐え忍んでいる"; return null; }
                 }
 
@@ -804,7 +804,7 @@
                     for (let i = crystals.length - 1; i >= 0; i--) {
                         if (dist(this.x, this.y, crystals[i].x, crystals[i].y) < 20) {
                             let boost = crystals[i].isGiant ? 50000 : 15000;
-                            crystals[i].isDead = true; this.lifeSpan += boost; 
+                            crystals[i].isDead = true; this.lifeSpan += boost;
                             for(let e of entities) { if (!e.isDead && dist(this.x, this.y, e.x, e.y) < 60) e.lifeSpan += (boost/3); }
                             addLog(`分解型 ${this.id} が結晶を群れの力へ変換しました`); break;
                         }
@@ -814,7 +814,7 @@
                 if (this.role === "CULLER" && entities.length > CONFIG.targetPopulation * 1.2 && cores.length > 0) {
                     for (let e of entities) {
                         if (e !== this && !e.isDead && e.role !== "COMMANDER" && (e.lifeSpan - e.age) < 25000 && dist(this.x, this.y, e.x, e.y) < 20) {
-                            e.isDead = true; 
+                            e.isDead = true;
                             cores.reduce((a, b) => dist(this.x, this.y, a.x, a.y) < dist(this.x, this.y, b.x, b.y) ? a : b).energy += 8000;
                             addLog(`間引き型 ${this.id} が弱った個体をコアへ直接還元しました`); break;
                         }
@@ -830,7 +830,7 @@
                 }
                 for (let i = nutrients.length - 1; i >= 0; i--) {
                     if (dist(this.x, this.y, nutrients[i].x, nutrients[i].y) < 18) {
-                        if (this.role === "GATHERER" && !this.hasNutrient) { this.hasNutrient = true; nutrients.splice(i, 1); } 
+                        if (this.role === "GATHERER" && !this.hasNutrient) { this.hasNutrient = true; nutrients.splice(i, 1); }
                         else if (this.role !== "GATHERER") { this.lifeSpan += CONFIG.nutrientEnergy; nutrients.splice(i, 1); }
                         break;
                     }
@@ -859,13 +859,13 @@
                 let shape = SHAPE_TYPES[this.typeIndex][this.stage];
                 let isUnderAttackCol = this.isUnderAttack ? { h: this.col.h, s: this.col.s * 0.2, b: this.col.b * 0.4 } : this.col;
                 let res = drawShapePattern(shape, this.x, this.y, isUnderAttackCol);
-                
+
                 push(); noStroke(); let sz = CONFIG.dotSize;
-                if (this.role === "SOLDIER") { fill(this.col.h, 10, 95); rect(res.sx - sz, res.sy - sz, sz, sz); rect(res.sx + res.cols * sz, res.sy - sz, sz, sz); } 
-                else if (this.role === "BUILDER") { fill(45, 90, 100); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); } 
-                else if (this.role === "GATHERER") { fill(120, 90, 100); rect(res.sx - sz, res.sy + res.rows * sz, sz, sz); if (this.hasNutrient) { fill(120, 80, 90); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy + (res.rows/2)*sz - sz/2, sz, sz); } } 
-                else if (this.role === "COMMANDER") { let steppedPulse = Math.floor(((sin(frameCount * 0.1) + 1) / 2) * 3) / 3; fill(0, 0, 100, 0.1 + steppedPulse * 0.2); rect(res.sx - sz*2, res.sy - sz*2, res.cols*sz + sz*4, res.rows*sz + sz*4); } 
-                else if (this.role === "HEALER" && this.carryEnergy > 0) { fill(330, 30, 100); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); } 
+                if (this.role === "SOLDIER") { fill(this.col.h, 10, 95); rect(res.sx - sz, res.sy - sz, sz, sz); rect(res.sx + res.cols * sz, res.sy - sz, sz, sz); }
+                else if (this.role === "BUILDER") { fill(45, 90, 100); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
+                else if (this.role === "GATHERER") { fill(120, 90, 100); rect(res.sx - sz, res.sy + res.rows * sz, sz, sz); if (this.hasNutrient) { fill(120, 80, 90); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy + (res.rows/2)*sz - sz/2, sz, sz); } }
+                else if (this.role === "COMMANDER") { let steppedPulse = Math.floor(((sin(frameCount * 0.1) + 1) / 2) * 3) / 3; fill(0, 0, 100, 0.1 + steppedPulse * 0.2); rect(res.sx - sz*2, res.sy - sz*2, res.cols*sz + sz*4, res.rows*sz + sz*4); }
+                else if (this.role === "HEALER" && this.carryEnergy > 0) { fill(330, 30, 100); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
                 else if (this.role === "CULLER") { fill(0, 0, 15); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
                 pop();
             }
@@ -891,7 +891,7 @@
                 let nearest = null, minD = Infinity;
                 for (let e of entities) { let d = dist(this.x, this.y, e.x, e.y); if (d < minD) { minD = d; nearest = e; } }
 
-                let speedMult = (dayBrightness < 0.2) ? 1.5 : 1.0; 
+                let speedMult = (dayBrightness < 0.2) ? 1.5 : 1.0;
                 let maxSpd = (this.isStrong ? CONFIG.strongEnemySpeed : CONFIG.enemySpeed) * speedMult;
 
                 if (nearest) {
@@ -943,9 +943,9 @@
             let canvas = createCanvas(container.clientWidth, container.clientHeight);
             canvas.parent(container);
             colorMode(HSB, 360, 100, 100);
-            
+
             document.getElementById('btn-reset').addEventListener('click', resetSimulation);
-            
+
             const guideModal = document.getElementById('guide-modal');
             document.getElementById('btn-guide').addEventListener('click', () => { guideModal.style.display = 'block'; });
             document.getElementById('btn-close-modal').addEventListener('click', () => { guideModal.style.display = 'none'; });
@@ -967,13 +967,13 @@
             totalBirths = 0; idCounter = 1; enemyIdCounter = 1; simulationStartTime = Date.now();
             isExtinct = false; selectedObjectId = null; logs = []; globalThreatLevel = 0;
             document.getElementById('extinct-overlay').style.display = 'none';
-            
+
             for(let i = 0; i < 6; i++) {
                 let e = new Entity(width/2 + random(-60, 60), height/2 + random(-60, 60));
                 e.typeIndex = i % SHAPE_TYPES.length; entities.push(e); addLog(`初期個体 ${e.id} [${e.role}] が発生しました`);
             }
             updateDOM();
-            
+
             // 起動時にログを最下部へスクロール
             setTimeout(() => {
                 let c = document.getElementById('log-container');
@@ -997,7 +997,7 @@
             let totalHalfHours = Math.floor(phaseRaw * 48);
             let h = Math.floor(totalHalfHours / 2) % 24;
             let m = (totalHalfHours % 2 === 0) ? "00" : "30";
-            
+
             let timeName = "";
             if (dayBrightness < 0.2) timeName = "夜";
             else if (dayBrightness > 0.8) timeName = "昼";
@@ -1008,7 +1008,7 @@
 
             background(200, 30, map(dayBrightness, 0, 1, 3, 12));
             drawGrid();
-            
+
             if (!isExtinct) {
                 if (Date.now() - lastTickTime > CONFIG.tickInterval) { updateSimulation(); lastTickTime = Date.now(); }
             }
@@ -1088,7 +1088,7 @@
 
             rectMode(CORNER); noStroke(); fill(0, 0, 5, 0.85); rect(labelX, labelY, boxW, boxH, 4);
             fill(0, 0, 85); textSize(10); textAlign(LEFT, TOP); let pad = 6;
-            
+
             if (target instanceof Entity) {
                 text(`ID: ${target.id} [${target.role}]`, labelX + pad, labelY + pad);
                 text(`TYPE: T-${target.typeIndex}`, labelX + pad, labelY + pad + 14);
