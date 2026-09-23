@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>静かなシャーレ</title>
+    <title>静かなシャーレ - 生態系拡張版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <style>
         :root {
@@ -57,7 +57,7 @@
         footer {
             background-color: var(--panel-bg);
             border-top: 1px solid var(--border-color);
-            height: 140px;
+            height: 160px;
             display: flex;
             flex-direction: column;
             z-index: 10;
@@ -66,13 +66,14 @@
         #log-container {
             flex-grow: 1;
             padding: 8px 12px;
-            font-size: 11px;
+            font-size: 14px;
             overflow-y: hidden;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
+            line-height: 1.4;
         }
-        .log-entry { margin: 2px 0; opacity: 0.8; }
+        .log-entry { margin: 3px 0; opacity: 0.9; }
 
         #controls {
             padding: 6px 12px;
@@ -109,33 +110,34 @@
         @media (max-width: 600px) {
             header { font-size: 10px; padding: 6px 8px; }
             .stat-item { margin-bottom: 4px; }
-            #log-container { font-size: 10px; padding: 6px 8px; }
-            footer { height: 120px; }
+            #log-container { font-size: 12px; padding: 6px 8px; }
+            footer { height: 140px; }
         }
     </style>
 </head>
 <body>
     <div id="app-container">
         <header>
-            <div class="stat-item">AGE: <span id="ui-species-age">00:00:00</span></div>
-            <div class="stat-item">BIRTHS: <span id="ui-total-births">0</span></div>
-            <div class="stat-item">ALIVE: <span id="ui-alive">0</span></div>
-            <div class="stat-item">BARRIERS: <span id="ui-barriers">0</span></div>
-            <div class="stat-item">THREAT: <span id="ui-threat">0%</span></div>
+            <div class="stat-item">経過時間: <span id="ui-species-age">00:00:00</span></div>
+            <div class="stat-item">累計誕生: <span id="ui-total-births">0</span></div>
+            <div class="stat-item">生存数: <span id="ui-alive">0</span></div>
+            <div class="stat-item">環境状態: <span id="ui-env">安定</span></div>
+            <div class="stat-item">防壁数: <span id="ui-barriers">0</span></div>
+            <div class="stat-item">脅威度: <span id="ui-threat">0%</span></div>
         </header>
 
         <main id="canvas-wrapper">
             <div id="extinct-overlay">
-                <h2>SPECIES STATUS: EXTINCT</h2>
-                <p>FINAL AGE: <span id="extinct-age"></span></p>
-                <p>TOTAL BIRTHS: <span id="extinct-births"></span></p>
+                <h2>種族ステータス: 絶滅</h2>
+                <p>生存時間: <span id="extinct-age"></span></p>
+                <p>総誕生数: <span id="extinct-births"></span></p>
             </div>
         </main>
 
         <footer>
             <div id="log-container"></div>
             <div id="controls">
-                <button id="btn-reset">SYSTEM RESET</button>
+                <button id="btn-reset">システムリセット</button>
             </div>
         </footer>
     </div>
@@ -145,21 +147,19 @@
         const CONFIG = {
             dotSize: 6,
             tickInterval: 150,
-            maxEntities: 200,
+            maxEntities: 40,
             localDensityRadius: 60,
             localDensityMax: 6,
             matureAge: 12000,
-            splitChance: 0.08,
-            minLife: 40000,
-            maxLife: 90000,
-            maxLogs: 8,
+            splitChance: 0.04,
+            minLife: 150000,
+            maxLife: 300000,
+            maxLogs: 7,
             mutationRate: 0.08,
-
-            longPressDuration: 700,
 
             maxEnemies: 6,
             enemySpeed: 6,
-            enemyLifeSpan: 35000,
+            enemyLifeSpan: 45000,
             enemyEffectRadius: 35,
             enemyMaxHp: 80,
             enemyDamagePerTick: 2500,
@@ -176,7 +176,12 @@
             maxBarriers: 25,
             barrierHp: 200,
             barrierBuildCooldown: 3000,
-            dangerMemoryDuration: 45000
+            dangerMemoryDuration: 45000,
+
+            maxNutrients: 15,
+            nutrientEnergy: 18000,
+            
+            turnToEnemyChance: 0.0002
         };
 
         const HUE_PALETTES = [140, 165, 195, 210, 270, 300, 45, 25];
@@ -212,6 +217,10 @@
         let barriers = [];
         let dangerSpots = [];
         let nests = [];
+        let nutrients = [];
+
+        let envState = "安定"; 
+        let lastEnvChange = 0;
 
         let simulationStartTime = 0;
         let extinctTime = 0;
@@ -223,10 +232,6 @@
         let selectedEntityId = null;
         let logs = [];
         let globalThreatLevel = 0;
-
-        let touchPressStart = 0;
-        let touchPressPos = { x: 0, y: 0 };
-        let isPressing = false;
 
         function formatTime(ms) {
             let totalSeconds = Math.floor(Math.max(0, ms) / 1000);
@@ -256,6 +261,23 @@
         }
 
         function snapToGrid(val) { return Math.floor(val / CONFIG.dotSize) * CONFIG.dotSize; }
+
+        class Nutrient {
+            constructor(x, y) {
+                this.x = snapToGrid(x);
+                this.y = snapToGrid(y);
+                this.id = Math.random().toString(36).substring(2, 6);
+            }
+
+            draw() {
+                push();
+                noStroke();
+                fill(120, 80, 90);
+                let d = CONFIG.dotSize;
+                rect(this.x, this.y, d, d);
+                pop();
+            }
+        }
 
         class Barrier {
             constructor(x, y) {
@@ -292,17 +314,25 @@
                 this.lastBuildTime = 0;
 
                 let roll = random();
-                let builderChance = globalThreatLevel * 0.5 + 0.05;
+                let builderChance = globalThreatLevel * 0.4 + 0.05;
                 let soldierChance = globalThreatLevel * 0.3 + 0.03;
+                let gathererChance = 0.15;
+                let scoutChance = 0.10;
 
                 this.isSoldier = false;
                 this.isBuilder = false;
+                this.isGatherer = false;
+                this.isScout = false;
                 this.isMutant = false;
 
                 if (roll < builderChance) {
                     this.isBuilder = true;
                 } else if (roll < builderChance + soldierChance) {
                     this.isSoldier = true;
+                } else if (roll < builderChance + soldierChance + gathererChance) {
+                    this.isGatherer = true;
+                } else if (roll < builderChance + soldierChance + gathererChance + scoutChance) {
+                    this.isScout = true;
                 } else if (random() < CONFIG.mutationRate) {
                     this.isMutant = true;
                 }
@@ -322,6 +352,14 @@
                     this.col = { h: random(soldierHues), s: 85, b: 90 };
                     this.attackPower = CONFIG.baseAttackPower * 3.0;
                     this.defenseRatio = 0.4;
+                } else if (this.isGatherer) {
+                    this.col = { h: 90, s: 80, b: 95 };
+                    this.attackPower = CONFIG.baseAttackPower * 0.6;
+                    this.defenseRatio = 0.9;
+                } else if (this.isScout) {
+                    this.col = { h: 180, s: 80, b: 95 };
+                    this.attackPower = CONFIG.baseAttackPower * 0.9;
+                    this.defenseRatio = 1.1;
                 } else if (this.isMutant) {
                     this.col = { h: random(360), s: 80, b: 85 };
                     this.attackPower = CONFIG.baseAttackPower * 1.5;
@@ -348,10 +386,11 @@
 
             updateShapeStage() {
                 let a = this.age;
-                if (a < 10000) this.stage = 0;
-                else if (a < 25000) this.stage = 1;
-                else if (a < 45000) this.stage = 2;
-                else if (a < 65000) this.stage = 3;
+                let stageLife = this.lifeSpan / 5;
+                if (a < stageLife) this.stage = 0;
+                else if (a < stageLife * 2) this.stage = 1;
+                else if (a < stageLife * 3) this.stage = 2;
+                else if (a < stageLife * 4) this.stage = 3;
                 else this.stage = 4;
             }
 
@@ -364,8 +403,20 @@
                     return;
                 }
 
+                if (enemies.length < CONFIG.maxEnemies && random() < CONFIG.turnToEnemyChance) {
+                    this.isDead = true; 
+                    let mutatedEnemy = new Enemy(this.x, this.y, false);
+                    enemies.push(mutatedEnemy);
+                    addLog(`【致命的変異】個体 ${this.id} が敵対勢力 ${mutatedEnemy.id} に変異しました！`);
+                    if (selectedEntityId === this.id) selectedEntityId = null; 
+                    return;
+                }
+
                 this.updateShapeStage();
                 this.isUnderAttack = false;
+
+                this.checkNutrientEat();
+                this.shareEnergyWithNeighbors();
 
                 if (this.isBuilder && Date.now() - this.lastBuildTime > CONFIG.barrierBuildCooldown) {
                     this.tryBuildBarrier();
@@ -383,7 +434,7 @@
                     }
                 }
 
-                let speedStep = (this.isSoldier || this.isBuilder) ? CONFIG.dotSize * 2 : CONFIG.dotSize;
+                let speedStep = (this.isSoldier || this.isBuilder || this.isScout) ? CONFIG.dotSize * 2 : CONFIG.dotSize;
 
                 if (nearestEnemy) {
                     let dx = nearestEnemy.x - this.x;
@@ -398,16 +449,27 @@
                     }
                 } else {
                     let targetSpot = null;
-                    if (this.isBuilder && dangerSpots.length > 0) {
+                    
+                    if (this.isGatherer && nutrients.length > 0) {
+                        let closestN = null;
+                        let minNDist = Infinity;
+                        for (let n of nutrients) {
+                            let d = dist(this.x, this.y, n.x, n.y);
+                            if (d < minNDist) { minNDist = d; closestN = n; }
+                        }
+                        if (closestN) targetSpot = closestN;
+                    }
+
+                    if (!targetSpot && this.isBuilder && dangerSpots.length > 0) {
                         targetSpot = dangerSpots[dangerSpots.length - 1];
                     }
 
-                    if (targetSpot && dist(this.x, this.y, targetSpot.x, targetSpot.y) > 40) {
+                    if (targetSpot && dist(this.x, this.y, targetSpot.x, targetSpot.y) > 20) {
                         let dx = targetSpot.x - this.x;
                         let dy = targetSpot.y - this.y;
                         if (Math.abs(dx) > Math.abs(dy)) this.x += (dx > 0 ? speedStep : -speedStep);
                         else this.y += (dy > 0 ? speedStep : -speedStep);
-                    } else if (random() < 0.3) {
+                    } else if (random() < (this.isScout ? 0.6 : 0.3)) {
                         let dir = random(['N', 'S', 'E', 'W']);
                         if (dir === 'N') this.y -= speedStep;
                         if (dir === 'S') this.y += speedStep;
@@ -421,6 +483,31 @@
 
                 if (this.age > CONFIG.matureAge && random() < CONFIG.splitChance) {
                     this.attemptSplit();
+                }
+            }
+
+            checkNutrientEat() {
+                for (let i = nutrients.length - 1; i >= 0; i--) {
+                    if (dist(this.x, this.y, nutrients[i].x, nutrients[i].y) < 18) {
+                        this.lifeSpan += CONFIG.nutrientEnergy;
+                        nutrients.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            shareEnergyWithNeighbors() {
+                if (this.lifeSpan - this.age < 20000) return;
+
+                for (let other of entities) {
+                    if (other === this || other.isDead) continue;
+                    let remaining = other.lifeSpan - other.age;
+                    if (remaining < 10000 && dist(this.x, this.y, other.x, other.y) < 25) {
+                        let transfer = 3000;
+                        this.lifeSpan -= transfer;
+                        other.lifeSpan += transfer;
+                        break;
+                    }
                 }
             }
 
@@ -454,7 +541,7 @@
                 let child = new Entity(this.x + offsetX, this.y + offsetY, this.col, this.typeIndex);
                 entities.push(child);
                 
-                let roleTag = child.isBuilder ? " [建築種:BUILDER]" : (child.isSoldier ? " [戦闘種:SOLDIER]" : (child.isMutant ? " [変異種]" : ""));
+                let roleTag = child.isBuilder ? " [BUILDER]" : (child.isSoldier ? " [SOLDIER]" : (child.isGatherer ? " [GATHERER]" : (child.isScout ? " [SCOUT]" : (child.isMutant ? " [MUTANT]" : ""))));
                 addLog(`個体 ${this.id} が分裂し、個体 ${child.id}${roleTag} が誕生`);
             }
 
@@ -486,6 +573,12 @@
                 } else if (this.isBuilder) {
                     fill(45, 90, 100);
                     rect(startX + (cols/2)*sz - sz/2, startY - sz, sz, sz);
+                } else if (this.isGatherer) {
+                    fill(120, 90, 100);
+                    rect(startX - sz, startY + rows * sz, sz, sz);
+                } else if (this.isScout) {
+                    fill(180, 90, 100);
+                    rect(startX + cols * sz, startY + rows * sz, sz, sz);
                 }
             }
         }
@@ -616,13 +709,16 @@
             barriers = [];
             dangerSpots = [];
             nests = [];
+            nutrients = [];
+            envState = "安定";
+            lastEnvChange = Date.now();
+
             totalBirths = 0;
             idCounter = 1;
             enemyIdCounter = 1;
             simulationStartTime = Date.now();
             isExtinct = false;
             selectedEntityId = null;
-            isPressing = false;
             logs = [];
             globalThreatLevel = 0;
             document.getElementById('extinct-overlay').style.display = 'none';
@@ -643,8 +739,23 @@
             resizeCanvas(container.clientWidth, container.clientHeight);
         }
 
+        function drawGrid() {
+            push();
+            stroke(140, 20, 15); // 方眼紙のような薄い暗緑色の格子線
+            strokeWeight(1);
+            let step = CONFIG.dotSize * 3; // 18px間隔のグリッド
+            for (let x = 0; x < width; x += step) {
+                line(x, 0, x, height);
+            }
+            for (let y = 0; y < height; y += step) {
+                line(0, y, width, y);
+            }
+            pop();
+        }
+
         function draw() {
             background(5);
+            drawGrid(); // 方眼紙風グリッドを描画
             
             if (!isExtinct) {
                 let now = Date.now();
@@ -656,22 +767,41 @@
 
             drawNests();
             drawDangerSpots();
+            for (let n of nutrients) n.draw();
             for (let b of barriers) b.draw();
             for (let e of entities) e.draw();
             for (let enemy of enemies) enemy.draw();
 
             drawSelectionUI();
-            drawLongPressChargeUI();
             
             if (frameCount % 10 === 0) updateDOM();
         }
 
         function updateSimulation() {
+            let now = Date.now();
+
+            if (now - lastEnvChange > 20000) {
+                lastEnvChange = now;
+                let roll = random();
+                if (roll < 0.5) envState = "安定";
+                else if (roll < 0.8) envState = "豊穣";
+                else envState = "危険";
+                addLog(`環境状態が [${envState}] に変化`);
+            }
+
+            let spawnChance = envState === "豊穣" ? 0.35 : 0.15;
+            if (nutrients.length < CONFIG.maxNutrients && random() < spawnChance) {
+                nutrients.push(new Nutrient(random(40, width - 40), random(40, height - 40)));
+            }
+
+            if (envState === "危険" && enemies.length < 2 && random() < 0.05) {
+                spawnEnemyAt(random(40, width - 40), random(40, height - 40), false);
+            }
+
             if (enemies.length === 0 && globalThreatLevel > 0) {
                 globalThreatLevel = max(0, globalThreatLevel - 0.001);
             }
 
-            let now = Date.now();
             dangerSpots = dangerSpots.filter(d => now - d.time < CONFIG.dangerMemoryDuration);
 
             for (let e of entities) e.tick();
@@ -723,7 +853,6 @@
             }
         }
 
-        // --- 拠点（NEST）のローポリ・カクカク描画処理 ---
         function drawNests() {
             push();
             noFill();
@@ -732,7 +861,7 @@
             
             for (let nest of nests) {
                 let radius = 30 + (sin(frameCount * 0.08) + 1) * 3;
-                let vertices = 8; // 八角形でローポリ感を演出
+                let vertices = 8;
                 
                 beginShape();
                 for (let i = 0; i < vertices; i++) {
@@ -791,85 +920,32 @@
             let labelX = target.x + sz/2 + 4;
             let labelY = target.y - sz/2;
 
-            let roleStr = target.isBuilder ? "BUILDER" : (target.isSoldier ? "SOLDIER" : (target.isMutant ? "MUTANT" : "STANDARD"));
+            let roleStr = target.isBuilder ? "BUILDER" : (target.isSoldier ? "SOLDIER" : (target.isGatherer ? "GATHERER" : (target.isScout ? "SCOUT" : (target.isMutant ? "MUTANT" : "STANDARD"))));
             text(`ID:${target.id} [${roleStr}]`, labelX, labelY);
             text(`TYPE:T-${target.typeIndex}`, labelX, labelY + 12);
             text(`ATK:${target.attackPower}`, labelX, labelY + 24);
             pop();
         }
 
-        function drawLongPressChargeUI() {
-            if (!isPressing || isExtinct) return;
-
-            let elapsed = millis() - touchPressStart;
-            let progress = constrain(elapsed / CONFIG.longPressDuration, 0, 1);
-
-            push();
-            noStroke();
-            fill(300, 75, 85);
-            let steps = 4;
-            let currentStep = Math.floor(progress * steps); 
-            let gridOffset = (4 - currentStep) * CONFIG.dotSize * 2; 
-
-            let centerX = snapToGrid(touchPressPos.x);
-            let centerY = snapToGrid(touchPressPos.y);
-            let dSize = CONFIG.dotSize;
-
-            rect(centerX - gridOffset, centerY - gridOffset, dSize, dSize);
-            rect(centerX + gridOffset, centerY - gridOffset, dSize, dSize);
-            rect(centerX - gridOffset, centerY + gridOffset, dSize, dSize);
-            rect(centerX + gridOffset, centerY + gridOffset, dSize, dSize);
-            rect(centerX, centerY, dSize, dSize);
-
-            if (progress >= 1.0) {
-                spawnEnemyAt(touchPressPos.x, touchPressPos.y, true);
-                isPressing = false;
-            }
-            pop();
-        }
-
-        function mousePressed() {
-            if (isExtinct) return;
-            if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-                touchPressStart = millis();
-                touchPressPos = { x: mouseX, y: mouseY };
-                isPressing = true;
-            }
-        }
-
         function mouseReleased() {
-            if (!isPressing || isExtinct) {
-                isPressing = false;
-                return;
+            if (isExtinct) return;
+
+            let tapRadius = 20;
+            let closestEntity = null;
+            let minEntityDist = tapRadius;
+
+            for (let e of entities) {
+                let d = dist(mouseX, mouseY, e.x, e.y);
+                if (d < minEntityDist) {
+                    minEntityDist = d;
+                    closestEntity = e;
+                }
             }
 
-            let pressDuration = millis() - touchPressStart;
-            isPressing = false;
-
-            if (pressDuration < CONFIG.longPressDuration) {
-                let tapRadius = 20;
-
-                let closestEntity = null;
-                let minEntityDist = tapRadius;
-
-                for (let e of entities) {
-                    let d = dist(mouseX, mouseY, e.x, e.y);
-                    if (d < minEntityDist) {
-                        minEntityDist = d;
-                        closestEntity = e;
-                    }
-                }
-
-                if (closestEntity) {
-                    selectedEntityId = (selectedEntityId === closestEntity.id) ? null : closestEntity.id;
-                    return;
-                }
-
-                for (let enemy of enemies) {
-                    if (dist(mouseX, mouseY, enemy.x, enemy.y) < tapRadius) return;
-                }
-
-                spawnEnemyAt(mouseX, mouseY, false);
+            if (closestEntity) {
+                selectedEntityId = (selectedEntityId === closestEntity.id) ? null : closestEntity.id;
+            } else {
+                selectedEntityId = null;
             }
         }
 
@@ -891,6 +967,7 @@
             document.getElementById('ui-species-age').innerText = formatTime(getSpeciesAge());
             document.getElementById('ui-total-births').innerText = totalBirths;
             document.getElementById('ui-alive').innerText = entities.length;
+            document.getElementById('ui-env').innerText = envState;
             document.getElementById('ui-barriers').innerText = barriers.length;
             document.getElementById('ui-threat').innerText = `${Math.floor(globalThreatLevel * 100)}%`;
         }
