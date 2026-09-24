@@ -456,7 +456,7 @@
         let simTime = 0;
         let lastRealTime = 0;
         let simulationSpeed = 1;
-        let lastSelectTime = 0; // 二重発火防止用のタイマー
+        let lastSelectTime = 0;
 
         let envState = "安定", lastEnvChange = 0, dayPhase = "00:00", dayBrightness = 1.0;
         let simulationStartTime = 0, extinctTime = 0, isExtinct = false, totalBirths = 0;
@@ -1246,7 +1246,6 @@
             pop();
         }
 
-        // --- 修正箇所：二重発火防止の実装 ---
         function mousePressed(event) {
             if (isExtinct) return;
             
@@ -1254,7 +1253,7 @@
             if (mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height) return;
 
             let now = Date.now();
-            if (now - lastSelectTime < 300) return; // 300ms以内の連続タップは二重発火とみなして無視
+            if (now - lastSelectTime < 300) return;
 
             let closestObj = null, minD = 25;
             for (let obj of [...entities, ...enemies, ...cores, ...crystals, ...nutrients, ...barriers, ...meteors]) {
@@ -1262,7 +1261,8 @@
             }
             
             if (closestObj) {
-                selectedObjectId = (selectedObjectId === closestObj.id) ? null : closestObj.id;
+                // --- 修正箇所：同じ個体をタップしても解除せず、選択状態を維持する ---
+                selectedObjectId = closestObj.id;
                 lastSelectTime = now;
             }
         }
