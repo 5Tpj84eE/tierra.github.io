@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>静かなシャーレ</title>
+    <title>静かなシャーレ - 究極観測版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <style>
         :root {
@@ -49,11 +49,11 @@
         .stat-item { margin-right: 12px; white-space: nowrap; }
         .time-display { font-weight: bold; color: var(--accent-cyan); }
 
-        /* ツールチップ用のスタイル（即時表示） */
         .tooltip-container {
             position: relative;
             cursor: pointer;
             color: var(--accent-cyan);
+            user-select: none;
         }
         .tooltip-content {
             display: none;
@@ -71,8 +71,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.5);
             white-space: normal;
         }
-        .tooltip-container:hover .tooltip-content,
-        .tooltip-container:active .tooltip-content {
+        .tooltip-content.show {
             display: block;
         }
 
@@ -105,7 +104,6 @@
             flex-direction: column;
             line-height: 1.4;
             overscroll-behavior: contain;
-            scroll-behavior: smooth;
         }
         #log-container > .log-entry:first-child {
             margin-top: auto;
@@ -143,6 +141,44 @@
         button:hover {
             background-color: rgba(119, 153, 119, 0.15);
             border-color: var(--text-main);
+        }
+
+        /* オプションメニュー */
+        .dropdown-container {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            margin-bottom: 8px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            width: 220px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        .dropdown-menu.show {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .menu-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .menu-item input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-cyan);
+            cursor: pointer;
+        }
+        .menu-item button {
+            width: 100%;
         }
 
         #extinct-overlay {
@@ -228,6 +264,15 @@
             #log-container { font-size: 12px; padding: 6px 8px; }
             footer { height: 140px; }
             .modal-content { padding: 12px; }
+            
+            .tooltip-content {
+                position: fixed;
+                top: 45px;
+                right: 10px;
+                width: 280px;
+                max-width: calc(100vw - 20px);
+                margin-top: 0;
+            }
         }
     </style>
 </head>
@@ -256,15 +301,26 @@
             <div id="log-container"></div>
             <button id="btn-log-bottom" type="button">最下部に戻る ↓</button>
             <div id="controls">
-                <button id="btn-guide">人工生命の種類と特徴</button>
-                <button id="btn-reset">システムリセット</button>
+                <button id="btn-guide">人口生命の種類と特徴</button>
+                <div class="dropdown-container">
+                    <button id="btn-options">オプション</button>
+                    <div id="options-menu" class="dropdown-menu">
+                        <div class="menu-item">
+                            <label for="speed-slider">進行速度: <span id="speed-value">1</span>倍</label>
+                            <input type="range" id="speed-slider" min="1" max="20" value="1">
+                        </div>
+                        <div class="menu-item">
+                            <button id="btn-reset">システムリセット</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </footer>
 
         <div id="guide-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>人工生命の種類と特徴</h2>
+                    <h2>人口生命の種類と特徴</h2>
                     <button class="close-btn" id="btn-close-modal">閉じる [X]</button>
                 </div>
 
@@ -397,9 +453,24 @@
         let entities = [], enemies = [], barriers = [], cores = [], crystals = [];
         let dangerSpots = [], nutrients = [], weatherParticles = [], meteors = [];
 
-        let envState = "安定", lastEnvChange = 0, dayPhase = "00:00 (昼)", dayBrightness = 1.0;
+        let simTime = 0;
+        let lastRealTime = 0;
+        let simulationSpeed = 1;
+
+        let envState = "安定", lastEnvChange = 0, dayPhase = "00:00", dayBrightness = 1.0;
         let simulationStartTime = 0, extinctTime = 0, isExtinct = false, totalBirths = 0;
         let idCounter = 1, enemyIdCounter = 1, lastTickTime = 0, selectedObjectId = null, logs = [], globalThreatLevel = 0;
+
+        function updateTime() {
+            let now = Date.now();
+            if (lastRealTime === 0) lastRealTime = now;
+            simTime += (now - lastRealTime) * simulationSpeed;
+            lastRealTime = now;
+        }
+
+        function getSimTime() {
+            return simTime;
+        }
 
         // Utility Functions
         function formatTime(ms) {
@@ -413,8 +484,8 @@
             if (logs.length > CONFIG.maxLogs) logs.shift();
             updateLogUI();
         }
-        function recordDangerSpot(x, y) { dangerSpots.push({ x: snapToGrid(x), y: snapToGrid(y), time: Date.now() }); }
-        function getSpeciesAge() { return isExtinct ? extinctTime - simulationStartTime : Date.now() - simulationStartTime; }
+        function recordDangerSpot(x, y) { dangerSpots.push({ x: snapToGrid(x), y: snapToGrid(y), time: getSimTime() }); }
+        function getSpeciesAge() { return isExtinct ? extinctTime - simulationStartTime : getSimTime() - simulationStartTime; }
         function snapToGrid(val) { return Math.floor(val / CONFIG.dotSize) * CONFIG.dotSize; }
 
         function drawShapePattern(pattern, cx, cy, fillCol, glowAlpha = 0) {
@@ -456,13 +527,13 @@
         class Crystal {
             constructor(x, y, isGiant = false) {
                 this.x = snapToGrid(x); this.y = snapToGrid(y);
-                this.bornTime = Date.now(); this.lifeSpan = isGiant ? 30000 : 15000;
+                this.bornTime = getSimTime(); this.lifeSpan = isGiant ? 30000 : 15000;
                 this.isDead = false; this.isGiant = isGiant;
                 this.id = 'CRYSTAL-' + Math.random().toString(36).substring(2, 6).toUpperCase();
             }
             tick() {
                 if (envState === "酸の雨") this.bornTime -= 50;
-                if (Date.now() - this.bornTime > this.lifeSpan) {
+                if (getSimTime() - this.bornTime > this.lifeSpan) {
                     this.isDead = true;
                     if (envState === "酸の雨") {
                         addLog("結晶が酸の雨で溶け落ちました"); return;
@@ -478,7 +549,7 @@
             }
             draw() {
                 push(); noStroke();
-                let alpha = Math.ceil(map(Date.now() - this.bornTime, 0, this.lifeSpan, 1, 0.2) * 4) / 4;
+                let alpha = Math.ceil(map(getSimTime() - this.bornTime, 0, this.lifeSpan, 1, 0.2) * 4) / 4;
                 let d = this.isGiant ? CONFIG.dotSize * 3 : CONFIG.dotSize;
                 fill(this.isGiant ? 190 : 280, this.isGiant ? 80 : 50, 100, alpha);
                 rect(this.isGiant ? this.x - d/2 : this.x, this.isGiant ? this.y - d/2 : this.y, d, d);
@@ -583,7 +654,7 @@
         class Entity {
             constructor(x, y, parentColor = null, parentType = null) {
                 this.id = generateId();
-                this.bornTime = Date.now();
+                this.bornTime = getSimTime();
                 this.lifeSpan = random(CONFIG.minLife, CONFIG.maxLife);
                 this.x = x; this.y = y; this.vx = 0; this.vy = 0;
                 this.isDead = false; this.stage = 0; this.isUnderAttack = false;
@@ -617,7 +688,7 @@
                 this.defenseRatio = def.def;
             }
 
-            get age() { return Date.now() - this.bornTime; }
+            get age() { return getSimTime() - this.bornTime; }
 
             updateShapeStage() {
                 let stageLife = this.lifeSpan / 5;
@@ -764,17 +835,17 @@
             }
 
             roleSpecificActions() {
-                if (this.role === "BUILDER" && Date.now() - this.lastBuildTime > CONFIG.barrierBuildCooldown) {
+                if (this.role === "BUILDER" && getSimTime() - this.lastBuildTime > CONFIG.barrierBuildCooldown) {
                     let isNearEnemy = enemies.some(e => dist(this.x, this.y, e.x, e.y) < 120);
                     let isNearDanger = dangerSpots.some(d => dist(this.x, this.y, d.x, d.y) < 80);
                     if (isNearEnemy || isNearDanger) {
                         if (barriers.length < CONFIG.maxBarriers && !barriers.some(b => dist(this.x, this.y, b.x, b.y) < 30)) {
-                            barriers.push(new Barrier(this.x, this.y)); this.lastBuildTime = Date.now(); addLog(`BUILDER ${this.id} が防壁を設置`);
+                            barriers.push(new Barrier(this.x, this.y)); this.lastBuildTime = getSimTime(); addLog(`BUILDER ${this.id} が防壁を設置`);
                         }
                     } else if (cores.length < CONFIG.maxCores) {
                         let friendsNear = entities.filter(e => dist(this.x, this.y, e.x, e.y) < 60).length;
                         if (friendsNear >= 4 && !cores.some(c => dist(this.x, this.y, c.x, c.y) < 120)) {
-                            cores.push(new Core(this.x, this.y)); this.lastBuildTime = Date.now(); addLog(`BUILDER ${this.id} が新たなコロニーの巣(Core)を構築しました`);
+                            cores.push(new Core(this.x, this.y)); this.lastBuildTime = getSimTime(); addLog(`BUILDER ${this.id} が新たなコロニーの巣(Core)を構築しました`);
                         }
                     }
                 }
@@ -874,7 +945,7 @@
         class Enemy {
             constructor(x, y, isStrong = false) {
                 this.isStrong = isStrong; this.id = generateEnemyId(isStrong);
-                this.bornTime = Date.now(); this.lifeSpan = isStrong ? CONFIG.strongEnemyLifeSpan : CONFIG.enemyLifeSpan;
+                this.bornTime = getSimTime(); this.lifeSpan = isStrong ? CONFIG.strongEnemyLifeSpan : CONFIG.enemyLifeSpan;
                 this.x = x; this.y = y; this.isDead = false; this.hp = isStrong ? CONFIG.strongEnemyHp : CONFIG.enemyMaxHp;
                 this.effectRadius = isStrong ? CONFIG.strongEnemyRadius : CONFIG.enemyEffectRadius;
                 this.patternIndex = floor(random(isStrong ? ENEMY_PATTERNS_STRONG.length : ENEMY_PATTERNS_NORMAL.length));
@@ -882,7 +953,7 @@
                 this.vx = 0; this.vy = 0;
             }
 
-            get age() { return Date.now() - this.bornTime; }
+            get age() { return getSimTime() - this.bornTime; }
 
             tick() {
                 if (this.isDead) return;
@@ -944,7 +1015,39 @@
             canvas.parent(container);
             colorMode(HSB, 360, 100, 100);
 
-            document.getElementById('btn-reset').addEventListener('click', resetSimulation);
+            const optionsMenu = document.getElementById('options-menu');
+            document.getElementById('btn-options').addEventListener('click', (e) => {
+                e.stopPropagation();
+                optionsMenu.classList.toggle('show');
+            });
+            
+            const tooltipContainer = document.querySelector('.tooltip-container');
+            const tooltipContent = document.getElementById('ui-env-desc');
+            tooltipContainer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                tooltipContent.classList.toggle('show');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (optionsMenu.classList.contains('show') && !optionsMenu.contains(e.target) && e.target.id !== 'btn-options') {
+                    optionsMenu.classList.remove('show');
+                }
+                if (tooltipContent.classList.contains('show') && !tooltipContainer.contains(e.target)) {
+                    tooltipContent.classList.remove('show');
+                }
+            });
+
+            const speedSlider = document.getElementById('speed-slider');
+            const speedValue = document.getElementById('speed-value');
+            speedSlider.addEventListener('input', (e) => {
+                simulationSpeed = parseFloat(e.target.value);
+                speedValue.innerText = simulationSpeed;
+            });
+
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                resetSimulation();
+                optionsMenu.classList.remove('show');
+            });
 
             const guideModal = document.getElementById('guide-modal');
             document.getElementById('btn-guide').addEventListener('click', () => { guideModal.style.display = 'block'; });
@@ -953,7 +1056,7 @@
             const logContainer = document.getElementById('log-container');
             const btnLogBottom = document.getElementById('btn-log-bottom');
             logContainer.addEventListener('scroll', () => {
-                btnLogBottom.style.display = (logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 8) ? 'none' : 'block';
+                btnLogBottom.style.display = (logContainer.scrollHeight - Math.ceil(logContainer.scrollTop) - logContainer.clientHeight < 20) ? 'none' : 'block';
             });
             btnLogBottom.addEventListener('click', () => { logContainer.scrollTop = logContainer.scrollHeight; });
 
@@ -963,18 +1066,22 @@
         function initSimulation() {
             entities = []; enemies = []; barriers = []; cores = []; crystals = [];
             dangerSpots = []; nutrients = []; weatherParticles = []; meteors = [];
-            envState = "安定"; lastEnvChange = Date.now();
-            totalBirths = 0; idCounter = 1; enemyIdCounter = 1; simulationStartTime = Date.now();
+            
+            lastRealTime = Date.now();
+            simTime = lastRealTime;
+            lastTickTime = simTime;
+            
+            envState = "安定"; lastEnvChange = getSimTime();
+            totalBirths = 0; idCounter = 1; enemyIdCounter = 1; simulationStartTime = getSimTime();
             isExtinct = false; selectedObjectId = null; logs = []; globalThreatLevel = 0;
             document.getElementById('extinct-overlay').style.display = 'none';
 
-            for(let i = 0; i < 6; i++) {
+            for(let i = 0; i < 3; i++) {
                 let e = new Entity(width/2 + random(-60, 60), height/2 + random(-60, 60));
                 e.typeIndex = i % SHAPE_TYPES.length; entities.push(e); addLog(`初期個体 ${e.id} [${e.role}] が発生しました`);
             }
             updateDOM();
 
-            // 起動時にログを最下部へスクロール
             setTimeout(() => {
                 let c = document.getElementById('log-container');
                 if (c) c.scrollTop = c.scrollHeight;
@@ -985,14 +1092,19 @@
         function windowResized() { let container = document.getElementById('canvas-wrapper'); resizeCanvas(container.clientWidth, container.clientHeight); }
 
         function drawGrid() {
-            push(); stroke(140, 20, dayBrightness * 15 + 5); strokeWeight(1); let step = CONFIG.dotSize * 3;
+            push();
+            stroke(140, 20, dayBrightness * 15 + 8);
+            strokeWeight(0.5); 
+            let step = CONFIG.dotSize * 2; 
             for (let x = 0; x < width; x += step) line(x, 0, x, height);
             for (let y = 0; y < height; y += step) line(0, y, width, y);
             pop();
         }
 
         function draw() {
-            let phaseRaw = ((Date.now() - simulationStartTime) % CONFIG.dayCycleMs) / CONFIG.dayCycleMs;
+            updateTime();
+
+            let phaseRaw = ((getSimTime() - simulationStartTime) % CONFIG.dayCycleMs) / CONFIG.dayCycleMs;
             dayBrightness = sin(phaseRaw * TWO_PI - HALF_PI) * 0.5 + 0.5;
             let totalHalfHours = Math.floor(phaseRaw * 48);
             let h = Math.floor(totalHalfHours / 2) % 24;
@@ -1010,7 +1122,13 @@
             drawGrid();
 
             if (!isExtinct) {
-                if (Date.now() - lastTickTime > CONFIG.tickInterval) { updateSimulation(); lastTickTime = Date.now(); }
+                let maxLoops = 20; 
+                let loops = 0;
+                while (getSimTime() - lastTickTime > CONFIG.tickInterval && loops < maxLoops) {
+                    updateSimulation(); 
+                    lastTickTime += CONFIG.tickInterval;
+                    loops++;
+                }
             }
 
             if (envState === "極夜") {
@@ -1038,11 +1156,29 @@
         }
 
         function updateSimulation() {
-            let now = Date.now();
+            let now = getSimTime();
             if (now - lastEnvChange > 30000) {
                 lastEnvChange = now;
                 let roll = random();
-                if (roll < 0.4) envState = "安定"; else if (roll < 0.6) envState = "豊穣"; else if (roll < 0.7) envState = "危険"; else if (roll < 0.8) envState = "大干ばつ"; else if (roll < 0.9) envState = "極夜"; else if (roll < 0.95) envState = "酸の雨"; else envState = "隕石群";
+                
+                // --- 修正箇所：過酷な環境が重複・連続しないように制御 ---
+                let hasEnemies = enemies.length > 0;
+                let hasMeteors = meteors.length > 0;
+                let isCurrentlyHarsh = ["危険", "大干ばつ", "極夜", "酸の雨", "隕石群"].includes(envState);
+                
+                // 現在が過酷な環境か、敵や隕石が残っている場合は、必ず平和な環境へ移行させる
+                if (isCurrentlyHarsh || hasEnemies || hasMeteors) {
+                    envState = roll < 0.7 ? "安定" : "豊穣";
+                } else {
+                    if (roll < 0.4) envState = "安定"; 
+                    else if (roll < 0.6) envState = "豊穣"; 
+                    else if (roll < 0.7) envState = "危険"; 
+                    else if (roll < 0.8) envState = "大干ばつ"; 
+                    else if (roll < 0.9) envState = "極夜"; 
+                    else if (roll < 0.95) envState = "酸の雨"; 
+                    else envState = "隕石群";
+                }
+                
                 addLog(`環境状態が [${envState}] に変化`);
             }
 
@@ -1064,7 +1200,7 @@
             if (selectedObjectId && ![...entities, ...enemies, ...cores, ...crystals, ...nutrients, ...barriers, ...meteors].find(o => o.id === selectedObjectId)) selectedObjectId = null;
 
             if (entities.length === 0 && !isExtinct) {
-                isExtinct = true; extinctTime = Date.now(); addLog("生命活動停止。絶滅を確認。");
+                isExtinct = true; extinctTime = getSimTime(); addLog("生命活動停止。絶滅を確認。");
                 document.getElementById('extinct-overlay').style.display = 'block';
                 document.getElementById('extinct-age').innerText = formatTime(extinctTime - simulationStartTime);
                 document.getElementById('extinct-births').innerText = totalBirths;
@@ -1111,13 +1247,20 @@
             pop();
         }
 
-        function mouseReleased() {
+        function mousePressed(event) {
             if (isExtinct) return;
+            
+            if (event && event.target && event.target.tagName !== 'CANVAS') return;
+            if (mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height) return;
+
             let closestObj = null, minD = 25;
             for (let obj of [...entities, ...enemies, ...cores, ...crystals, ...nutrients, ...barriers, ...meteors]) {
                 let d = dist(mouseX, mouseY, obj.x, obj.y); if (d < minD) { minD = d; closestObj = obj; }
             }
-            selectedObjectId = closestObj ? (selectedObjectId === closestObj.id ? null : closestObj.id) : null;
+            
+            if (closestObj) {
+                selectedObjectId = (selectedObjectId === closestObj.id) ? null : closestObj.id;
+            }
         }
 
         function spawnEnemyAt(x, y, isStrong) {
@@ -1136,11 +1279,21 @@
 
         function updateLogUI() {
             let c = document.getElementById('log-container');
-            let wasAtBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 8;
+            let wasAtBottom = c.scrollHeight - Math.ceil(c.scrollTop) - c.clientHeight < 20;
+            
             c.innerHTML = '';
-            for (let log of logs) { let d = document.createElement('div'); d.className = 'log-entry'; d.innerText = log; c.appendChild(d); }
-            if (wasAtBottom) c.scrollTop = c.scrollHeight;
-            document.getElementById('btn-log-bottom').style.display = (c.scrollHeight - c.scrollTop - c.clientHeight < 8) ? 'none' : 'block';
+            for (let log of logs) { 
+                let d = document.createElement('div'); 
+                d.className = 'log-entry'; 
+                d.innerText = log; 
+                c.appendChild(d); 
+            }
+            
+            if (wasAtBottom) {
+                c.scrollTop = c.scrollHeight;
+            }
+            
+            document.getElementById('btn-log-bottom').style.display = (c.scrollHeight - Math.ceil(c.scrollTop) - c.clientHeight < 20) ? 'none' : 'block';
         }
     </script>
 </body>
