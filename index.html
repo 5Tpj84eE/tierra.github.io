@@ -456,6 +456,7 @@
         let simTime = 0;
         let lastRealTime = 0;
         let simulationSpeed = 1;
+        let lastSelectTime = 0; // 二重発火防止用のタイマー
 
         let envState = "安定", lastEnvChange = 0, dayPhase = "00:00", dayBrightness = 1.0;
         let simulationStartTime = 0, extinctTime = 0, isExtinct = false, totalBirths = 0;
@@ -1161,12 +1162,10 @@
                 lastEnvChange = now;
                 let roll = random();
                 
-                // --- 修正箇所：過酷な環境が重複・連続しないように制御 ---
                 let hasEnemies = enemies.length > 0;
                 let hasMeteors = meteors.length > 0;
                 let isCurrentlyHarsh = ["危険", "大干ばつ", "極夜", "酸の雨", "隕石群"].includes(envState);
                 
-                // 現在が過酷な環境か、敵や隕石が残っている場合は、必ず平和な環境へ移行させる
                 if (isCurrentlyHarsh || hasEnemies || hasMeteors) {
                     envState = roll < 0.7 ? "安定" : "豊穣";
                 } else {
@@ -1247,11 +1246,15 @@
             pop();
         }
 
+        // --- 修正箇所：二重発火防止の実装 ---
         function mousePressed(event) {
             if (isExtinct) return;
             
             if (event && event.target && event.target.tagName !== 'CANVAS') return;
             if (mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height) return;
+
+            let now = Date.now();
+            if (now - lastSelectTime < 300) return; // 300ms以内の連続タップは二重発火とみなして無視
 
             let closestObj = null, minD = 25;
             for (let obj of [...entities, ...enemies, ...cores, ...crystals, ...nutrients, ...barriers, ...meteors]) {
@@ -1260,6 +1263,7 @@
             
             if (closestObj) {
                 selectedObjectId = (selectedObjectId === closestObj.id) ? null : closestObj.id;
+                lastSelectTime = now;
             }
         }
 
