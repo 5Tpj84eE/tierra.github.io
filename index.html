@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>静かなシャーレ - 究極観測版</title>
+    <title>静かなシャーレ</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <style>
         :root {
@@ -59,11 +59,11 @@
             color: var(--accent-cyan);
             user-select: none;
         }
+
         .tooltip-content {
             display: none;
             position: absolute;
             top: 100%;
-            right: 0;
             margin-top: 8px;
             background-color: var(--panel-bg);
             border: 1px solid var(--border-color);
@@ -75,9 +75,11 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.5);
             white-space: normal;
         }
-        .tooltip-content.show {
-            display: block;
-        }
+
+        #era-tooltip-btn .tooltip-content { left: 0; right: auto; }
+        #env-tooltip-btn .tooltip-content { right: 0; left: auto; }
+
+        .tooltip-content.show { display: block; }
 
         main {
             flex-grow: 1;
@@ -109,9 +111,7 @@
             line-height: 1.5;
             overscroll-behavior: contain;
         }
-        #log-container > .log-entry:first-child {
-            margin-top: auto;
-        }
+        #log-container > .log-entry:first-child { margin-top: auto; }
         .log-era { color: var(--accent-gold); font-weight: bold; }
         .log-warn { color: var(--accent-red); }
         .log-beta { color: var(--faction-beta); }
@@ -150,118 +150,104 @@
             border-color: var(--text-main);
         }
 
-        .dropdown-container {
-            position: relative;
-            display: inline-block;
-        }
+        .dropdown-container { position: relative; display: inline-block; }
         .dropdown-menu {
-            display: none;
-            position: absolute;
-            bottom: 100%;
-            right: 0;
-            margin-bottom: 8px;
-            background-color: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            padding: 16px;
-            width: 220px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-            z-index: 100;
+            display: none; position: absolute; bottom: 100%; right: 0; margin-bottom: 8px;
+            background-color: var(--panel-bg); border: 1px solid var(--border-color);
+            padding: 16px; width: 220px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); z-index: 100;
         }
-        .dropdown-menu.show {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .menu-item {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            font-size: 13px;
-        }
-        .menu-item input[type="range"] {
-            width: 100%;
-            accent-color: var(--accent-cyan);
-            cursor: pointer;
-        }
-        .menu-item button {
-            width: 100%;
-        }
+        .dropdown-menu.show { display: flex; flex-direction: column; gap: 16px; }
+        .menu-item { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+        .menu-item input[type="range"] { width: 100%; accent-color: var(--accent-cyan); cursor: pointer; }
+        .menu-item button { width: 100%; }
 
-        #guide-modal {
-            display: none;
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(5, 5, 5, 0.92);
-            z-index: 50;
-            padding: 20px;
-            overflow-y: auto;
-            scroll-behavior: smooth;
+        /* モーダル共通スタイル */
+        .modal-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(5, 5, 5, 0.92); z-index: 50; padding: 20px;
+            overflow-y: auto; scroll-behavior: smooth;
         }
         .modal-content {
-            max-width: 760px;
-            margin: 0 auto;
-            background-color: var(--panel-bg);
-            border: 1px solid var(--text-main);
-            padding: 20px;
+            max-width: 760px; margin: 0 auto; background-color: var(--panel-bg);
+            border: 1px solid var(--text-main); padding: 20px;
             box-shadow: 0 0 15px rgba(0, 255, 0, 0.05);
         }
         .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-            margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;
         }
         .modal-header h2 { margin: 0; font-size: 16px; color: var(--text-main); letter-spacing: 1px; }
         .close-btn { font-size: 12px; padding: 2px 10px; }
 
-        .type-card {
-            border: 1px solid var(--border-color);
-            padding: 12px;
-            margin-bottom: 12px;
-            background-color: rgba(0, 0, 0, 0.3);
-        }
-        .type-title {
-            font-weight: bold;
-            font-size: 13px;
-            margin-bottom: 6px;
+        /* 最終評価モーダル専用スタイル */
+        .eval-grid {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            flex-wrap: wrap;
+            gap: 20px;
         }
+        .eval-text-section {
+            flex: 1;
+            min-width: 280px;
+        }
+        .eval-chart-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 300px;
+            margin: 0 auto;
+        }
+        .eval-rank-display {
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px currentColor;
+        }
+        .eval-prob-display {
+            font-size: 14px;
+            color: var(--accent-cyan);
+            text-align: center;
+            margin-bottom: 20px;
+            border: 1px dashed var(--accent-cyan);
+            padding: 8px;
+            background: rgba(85, 170, 170, 0.1);
+        }
+        .eval-summary-text {
+            color: var(--text-main);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.3);
+            border-left: 3px solid var(--accent-gold);
+        }
+        #radar-canvas {
+            background-color: transparent;
+            max-width: 100%;
+        }
+
+        .type-card { border: 1px solid var(--border-color); padding: 12px; margin-bottom: 12px; background-color: rgba(0, 0, 0, 0.3); }
+        .type-title { font-weight: bold; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
         .badge { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
         .type-desc { font-size: 11px; line-height: 1.5; color: #aabbaa; }
         .sub-title { font-size: 12px; color: var(--accent-gold); margin: 16px 0 8px 0; }
 
         @media (max-width: 600px) {
-            header {
-                display: grid;
-                grid-template-columns: 1fr 1fr 1fr;
-                gap: 8px 4px;
-                padding: 8px;
-                font-size: 10px;
-            }
+            header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 4px; padding: 8px; font-size: 10px; }
             .stat-item { margin-right: 0; white-space: nowrap; }
             .stat-item:nth-child(3n+1) { text-align: left; }
             .stat-item:nth-child(3n+2) { text-align: center; }
             .stat-item:nth-child(3n) { text-align: right; }
-
             #log-container { font-size: 12px; padding: 6px 8px; }
             footer { height: 140px; }
             .modal-content { padding: 12px; }
-
             .tooltip-content {
-                position: fixed;
-                top: 55px;
-                right: 10px;
-                width: 280px;
-                max-width: calc(100vw - 20px);
-                margin-top: 0;
-                text-align: left;
-                white-space: normal;
+                position: fixed; top: 55px; width: 280px; max-width: calc(100vw - 20px);
+                margin-top: 0; text-align: left; white-space: normal;
             }
+            #era-tooltip-btn .tooltip-content { left: 10px; right: auto; }
+            #env-tooltip-btn .tooltip-content { right: 10px; left: auto; }
         }
     </style>
 </head>
@@ -296,8 +282,7 @@
                     <div id="options-menu" class="dropdown-menu">
                         <div class="menu-item">
                             <label for="speed-slider">進行速度: <span id="speed-value">1</span>倍</label>
-                            <!-- スライダーの目盛りを1, 10, 20, 30, 40, 50 のみに固定 -->
-                            <input type="range" id="speed-slider" min="0" max="5" step="1" value="0">
+                            <input type="range" id="speed-slider" min="0" max="6" step="1" value="0">
                         </div>
                         <div class="menu-item">
                             <button id="btn-reset">システムリセット</button>
@@ -307,11 +292,12 @@
             </div>
         </footer>
 
-        <div id="guide-modal">
+        <!-- ガイドモーダル -->
+        <div id="guide-modal" class="modal-overlay">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>人口生命の種類と特徴</h2>
-                    <button class="close-btn" id="btn-close-modal">閉じる [X]</button>
+                    <button class="close-btn" onclick="document.getElementById('guide-modal').style.display='none'">閉じる [X]</button>
                 </div>
 
                 <div class="sub-title">【文明と進化】</div>
@@ -365,6 +351,36 @@
                 </div>
             </div>
         </div>
+
+        <!-- 最終評価モーダル -->
+        <div id="eval-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>最終分析レポート</h2>
+                    <button class="close-btn" onclick="document.getElementById('eval-modal').style.display='none'">閉じる [X]</button>
+                </div>
+
+                <div class="eval-grid">
+                    <div class="eval-text-section">
+                        <div id="eval-rank-container" class="eval-rank-display">Rank S</div>
+                        <div id="eval-prob-container" class="eval-prob-display">
+                            第X世代 絶滅時到達確率: 0.00%
+                        </div>
+                        <div id="eval-summary" class="eval-summary-text">
+                            ここに詳細な分析テキストが入ります。
+                        </div>
+                        <div style="font-size: 12px; color: #aabbaa;">
+                            <ul style="padding-left: 20px; margin: 0; line-height: 1.8;" id="eval-stats-list">
+                                <!-- 統計リスト -->
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="eval-chart-section">
+                        <canvas id="radar-canvas" width="300" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -392,6 +408,9 @@
             strongEnemyRadius: 55,
             strongEnemySpeed: 3,
 
+            turnToEnemyChance: 0.0005,
+            mutationDuration: 6000,
+
             detectRadius: 150,
             baseAttackPower: 12,
             killBonusLife: 12000,
@@ -404,14 +423,13 @@
 
             maxNutrients: 30,
             nutrientEnergy: 18000,
-            turnToEnemyChance: 0.0002,
             dayCycleMs: 120000
         };
 
         const ENV_DESCRIPTIONS = {
             "安定": "平常のサイクル。生命が穏やかに活動します。",
             "豊穣": "栄養素が豊富に発生する恵みの気象。生命が活発に繁殖します。",
-            "危険": "外敵が自然発生しやすい警戒状態。防壁と戦闘型が鍵を握ります。",
+            "危険": "防壁と戦闘型が鍵を握ります。内部からの変異リスクが急増しています。",
             "大干ばつ": "栄養素が自然発生しなくなる過酷な気象。コアの備蓄と運搬が命綱です。",
             "酸の雨": "防壁や生命の結晶が急速に溶けて消滅してしまう過酷な環境。",
             "隕石群": "巨大な隕石が降り注ぐ。直撃は危険ですが、莫大な資源が残されます。",
@@ -471,6 +489,10 @@
         let maxGeneration = 1;
         let evoPhase = 1;
 
+        // 統計用変数
+        let maxHistoricalPop = 0;
+        let totalCoresBuilt = 0;
+
         let envState = "安定", lastEnvChange = 0, dayPhase = "00:00", dayBrightness = 1.0;
         let simulationStartTime = 0, extinctTime = 0, isExtinct = false, totalBirths = 0;
         let idCounter = 1, enemyIdCounter = 1, lastTickTime = 0, selectedObjectId = null, logs = [], globalThreatLevel = 0;
@@ -490,21 +512,29 @@
         }
         function generateId() { return String(idCounter++).padStart(3, '0'); }
         function generateEnemyId(isStrong) { return `${isStrong ? 'S-' : 'E'}${String(enemyIdCounter++).padStart(2, '0')}`; }
-        function addLog(msg, type = "normal") {
+
+        function addLog(msg, type = "normal", isHtml = false) {
             let colorClass = "";
             if(type === "era") colorClass = "log-era";
             else if(type === "warn") colorClass = "log-warn";
             else if(type === "beta") colorClass = "log-beta";
 
-            logs.push({ text: `[${formatTime(getSpeciesAge())}] ${msg}`, colorClass: colorClass });
+            let timeStr = `[${formatTime(getSpeciesAge())}] `;
+            if (isHtml) {
+                logs.push({ html: `<span style="opacity:0.6">${timeStr}</span>` + msg, colorClass: colorClass });
+            } else {
+                logs.push({ text: timeStr + msg, colorClass: colorClass });
+            }
+
             if (logs.length > CONFIG.maxLogs) logs.shift();
             updateLogUI();
         }
+
         function recordDangerSpot(x, y) { dangerSpots.push({ x: snapToGrid(x), y: snapToGrid(y), time: getSimTime() }); }
         function getSpeciesAge() { return isExtinct ? extinctTime - simulationStartTime : getSimTime() - simulationStartTime; }
         function snapToGrid(val) { return Math.floor(val / CONFIG.dotSize) * CONFIG.dotSize; }
 
-        function drawShapePattern(pattern, cx, cy, fillCol) {
+        function drawShapePattern(pattern, cx, cy, fillCol, alphaVal = 1.0) {
             push();
             noStroke();
             let rows = pattern.length;
@@ -515,7 +545,7 @@
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     if (pattern[r][c] > 0) {
-                        fill(fillCol.h, fillCol.s, fillCol.b);
+                        fill(fillCol.h, fillCol.s, fillCol.b, alphaVal);
                         rect(sx + c * CONFIG.dotSize, sy + r * CONFIG.dotSize, CONFIG.dotSize, CONFIG.dotSize);
                     }
                 }
@@ -730,6 +760,9 @@
                 this.generation = generation;
                 this.intent = "周囲を探索中";
 
+                this.isMutatingToEnemy = false;
+                this.mutationStartTime = 0;
+
                 this.assignRole(parentColor);
                 this.typeIndex = (parentType !== null && random() > 0.15) ? parentType : floor(random(SHAPE_TYPES.length));
                 totalBirths++;
@@ -788,16 +821,41 @@
 
             tick() {
                 if (this.isDead) return;
+
+                if (this.isMutatingToEnemy) {
+                    let progress = (getSimTime() - this.mutationStartTime) / CONFIG.mutationDuration;
+
+                    this.vx *= 0.8; this.vy *= 0.8;
+                    this.x += this.vx; this.y += this.vy;
+
+                    if (progress >= 1.0) {
+                        this.isDead = true;
+                        let isStrong = random() < 0.2;
+                        let enemy = new Enemy(this.x, this.y, isStrong);
+                        enemies.push(enemy);
+                        addLog(`【致命的変異】個体 ${this.id} が敵対勢力に変異しました！`, "warn");
+                        if (selectedObjectId === this.id) selectedObjectId = null;
+                    }
+                    return;
+                }
+
                 if (this.age > this.lifeSpan) {
                     this.isDead = true; crystals.push(new Crystal(this.x, this.y));
                     return;
                 }
 
                 if (envState === "極夜") this.lifeSpan -= 50;
-                if (enemies.length < CONFIG.maxEnemies && random() < CONFIG.turnToEnemyChance) {
-                    this.isDead = true; enemies.push(new Enemy(this.x, this.y, false));
-                    addLog(`【致命的変異】個体 ${this.id} が敵対勢力に変異しました！`, "warn");
-                    if (selectedObjectId === this.id) selectedObjectId = null; return;
+
+                let currentMutateChance = CONFIG.turnToEnemyChance;
+                if (envState === "危険") currentMutateChance *= 5;
+                if (envState === "豊穣") currentMutateChance *= 0.5;
+
+                if (enemies.length < CONFIG.maxEnemies && random() < currentMutateChance) {
+                    this.isMutatingToEnemy = true;
+                    this.mutationStartTime = getSimTime();
+                    this.intent = "異常な変異の予兆...";
+                    addLog(`【予兆】個体 ${this.id} の様子がおかしい…変異が始まります`, "warn");
+                    return;
                 }
 
                 this.updateShapeStage();
@@ -818,7 +876,7 @@
 
                 if (this.role === "SOLDIER") {
                     for (let e of entities) {
-                        if (e.faction !== this.faction && !e.isDead) {
+                        if (e.faction !== this.faction && !e.isDead && !e.isMutatingToEnemy) {
                             let d = dist(this.x, this.y, e.x, e.y);
                             if (d < 30) {
                                 e.lifeSpan -= this.attackPower * 50;
@@ -877,7 +935,7 @@
                     }
 
                     for (let other of entities) {
-                        if (other === this || other.isDead || other.faction !== this.faction) continue;
+                        if (other === this || other.isDead || other.faction !== this.faction || other.isMutatingToEnemy) continue;
                         let d = dist(this.x, this.y, other.x, other.y);
                         if (d > 0 && d < 60) {
                             sepX += (this.x - other.x) / d; sepY += (this.y - other.y) / d;
@@ -945,7 +1003,7 @@
                     return crystals.reduce((a, b) => dist(this.x, this.y, a.x, a.y) < dist(this.x, this.y, b.x, b.y) ? a : b);
                 } else if (this.role === "HEALER") {
                     if (this.carryEnergy > 0) {
-                        let dying = entities.find(e => !e.isDead && e.faction === this.faction && (e.lifeSpan - e.age) < 50000 && e !== this);
+                        let dying = entities.find(e => !e.isDead && e.faction === this.faction && !e.isMutatingToEnemy && (e.lifeSpan - e.age) < 50000 && e !== this);
                         if (dying) { this.intent = "弱った仲間へエネルギー運搬"; return dying; }
                         let combatSoldier = entities.find(e => !e.isDead && e.faction === this.faction && e.role === "SOLDIER" && e.isUnderAttack);
                         if (combatSoldier) { this.intent = "前線へエネルギー運搬"; return combatSoldier; }
@@ -955,8 +1013,9 @@
                     }
                 } else if (this.role === "CULLER") {
                     let myPop = entities.filter(e => e.faction === this.faction).length;
+                    let myCores = cores.filter(c => c.faction === this.faction);
                     if (myPop > (CONFIG.targetPopulation / 2) * 1.2 && myCores.length > 0) {
-                        let dying = entities.find(e => !e.isDead && e.faction === this.faction && e.role !== "COMMANDER" && (e.lifeSpan - e.age) < 25000 && e !== this);
+                        let dying = entities.find(e => !e.isDead && e.faction === this.faction && e.role !== "COMMANDER" && !e.isMutatingToEnemy && (e.lifeSpan - e.age) < 25000 && e !== this);
                         if (dying) { this.intent = "弱った個体を間引き中"; return dying; }
                     }
                 }
@@ -977,6 +1036,7 @@
                             let friendsNear = entities.filter(e => e.faction === this.faction && dist(this.x, this.y, e.x, e.y) < 60).length;
                             if (friendsNear >= 4 && !myCores.some(c => dist(this.x, this.y, c.x, c.y) < 120)) {
                                 cores.push(new Core(this.x, this.y, this.faction)); this.lastBuildTime = getSimTime();
+                                totalCoresBuilt++;
                                 addLog(`派閥 ${this.faction === 0 ? '緑' : '青'} が新たな巣を構築しました`, this.faction === 0 ? 'normal' : 'beta');
                             }
                         }
@@ -998,7 +1058,7 @@
                         }
                     } else {
                         for (let e of entities) {
-                            if (e !== this && e.faction === this.faction && !e.isDead && ((e.lifeSpan - e.age) < 50000 || (e.role === "SOLDIER" && e.isUnderAttack)) && dist(this.x, this.y, e.x, e.y) < 25) {
+                            if (e !== this && e.faction === this.faction && !e.isDead && !e.isMutatingToEnemy && ((e.lifeSpan - e.age) < 50000 || (e.role === "SOLDIER" && e.isUnderAttack)) && dist(this.x, this.y, e.x, e.y) < 25) {
                                 e.lifeSpan += this.carryEnergy; this.carryEnergy = 0; break;
                             }
                         }
@@ -1021,7 +1081,7 @@
                     let myCores = cores.filter(c => c.faction === this.faction);
                     if (myPop > (CONFIG.targetPopulation / 2) * 1.2 && myCores.length > 0) {
                         for (let e of entities) {
-                            if (e !== this && e.faction === this.faction && !e.isDead && e.role !== "COMMANDER" && (e.lifeSpan - e.age) < 25000 && dist(this.x, this.y, e.x, e.y) < 20) {
+                            if (e !== this && e.faction === this.faction && !e.isDead && e.role !== "COMMANDER" && !e.isMutatingToEnemy && (e.lifeSpan - e.age) < 25000 && dist(this.x, this.y, e.x, e.y) < 20) {
                                 e.isDead = true;
                                 myCores.reduce((a, b) => dist(this.x, this.y, a.x, a.y) < dist(this.x, this.y, b.x, b.y) ? a : b).energy += 8000;
                                 break;
@@ -1050,7 +1110,7 @@
             shareEnergyWithNeighbors() {
                 if (this.lifeSpan - this.age < 20000) return;
                 for (let other of entities) {
-                    if (other !== this && other.faction === this.faction && !other.isDead && (other.lifeSpan - other.age) < 10000 && dist(this.x, this.y, other.x, other.y) < 25) {
+                    if (other !== this && other.faction === this.faction && !other.isDead && !other.isMutatingToEnemy && (other.lifeSpan - other.age) < 10000 && dist(this.x, this.y, other.x, other.y) < 25) {
                         this.lifeSpan -= 3000; other.lifeSpan += 3000; break;
                     }
                 }
@@ -1070,20 +1130,46 @@
 
             draw() {
                 let shape = SHAPE_TYPES[this.typeIndex][this.stage];
-                let isUnderAttackCol = this.isUnderAttack ? { h: this.col.h, s: this.col.s * 0.2, b: this.col.b * 0.4 } : this.col;
-                let res = drawShapePattern(shape, this.x, this.y, isUnderAttackCol);
+                let drawCol = { h: this.col.h, s: this.col.s, b: this.col.b };
+                let alphaVal = 1.0;
 
-                push(); noStroke(); let sz = CONFIG.dotSize;
-                if (this.role === "SOLDIER") { fill(this.col.h, 10, 95); rect(res.sx - sz, res.sy - sz, sz, sz); rect(res.sx + res.cols * sz, res.sy - sz, sz, sz); }
-                else if (this.role === "BUILDER") { fill(45, 90, 100); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
-                else if (this.role === "GATHERER") { fill(120, 90, 100); rect(res.sx - sz, res.sy + res.rows * sz, sz, sz); if (this.hasNutrient) { fill(120, 80, 90); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy + (res.rows/2)*sz - sz/2, sz, sz); } }
+                push();
+                if (this.isMutatingToEnemy) {
+                    let progress = (getSimTime() - this.mutationStartTime) / CONFIG.mutationDuration;
+
+                    drawCol.h = lerp(this.col.h, 360, progress);
+                    drawCol.s = lerp(this.col.s, 100, progress);
+                    drawCol.b = lerp(this.col.b, 100, progress);
+
+                    if (progress < 0.5) {
+                        let blinkPhase = progress * Math.PI * 10;
+                        alphaVal = 0.3 + (Math.sin(blinkPhase) + 1) / 2 * 0.7;
+                    } else {
+                        let p2 = (progress - 0.5) * 2;
+                        let scaleFactor = 1.0 + p2 * 1.5;
+                        translate(this.x, this.y);
+                        scale(scaleFactor);
+                        translate(-this.x, -this.y);
+
+                        translate(random(-1, 1) * p2 * 3, random(-1, 1) * p2 * 3);
+                    }
+                } else if (this.isUnderAttack) {
+                    drawCol = { h: this.col.h, s: this.col.s * 0.2, b: this.col.b * 0.4 };
+                }
+
+                let res = drawShapePattern(shape, this.x, this.y, drawCol, alphaVal);
+
+                noStroke(); let sz = CONFIG.dotSize;
+                if (this.role === "SOLDIER") { fill(drawCol.h, 10, 95, alphaVal); rect(res.sx - sz, res.sy - sz, sz, sz); rect(res.sx + res.cols * sz, res.sy - sz, sz, sz); }
+                else if (this.role === "BUILDER") { fill(45, 90, 100, alphaVal); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
+                else if (this.role === "GATHERER") { fill(120, 90, 100, alphaVal); rect(res.sx - sz, res.sy + res.rows * sz, sz, sz); if (this.hasNutrient) { fill(120, 80, 90, alphaVal); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy + (res.rows/2)*sz - sz/2, sz, sz); } }
                 else if (this.role === "COMMANDER") {
                     let steppedPulse = Math.floor(((sin(frameCount * 0.1) + 1) / 2) * 3) / 3;
-                    fill(0, 0, 100, 0.1 + steppedPulse * 0.2);
+                    fill(0, 0, 100, (0.1 + steppedPulse * 0.2) * alphaVal);
                     rect(res.sx - sz*2, res.sy - sz*2, res.cols*sz + sz*4, res.rows*sz + sz*4);
                 }
-                else if (this.role === "HEALER" && this.carryEnergy > 0) { fill(330, 30, 100); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
-                else if (this.role === "CULLER") { fill(0, 0, 15); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
+                else if (this.role === "HEALER" && this.carryEnergy > 0) { fill(330, 30, 100, alphaVal); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
+                else if (this.role === "CULLER") { fill(0, 0, 15, alphaVal); rect(res.sx + (res.cols/2)*sz - sz/2, res.sy - sz, sz, sz); }
                 pop();
             }
         }
@@ -1103,10 +1189,14 @@
 
             tick() {
                 if (this.isDead) return;
-                if (this.age > this.lifeSpan) { this.isDead = true; addLog(`敵対勢力 ${this.id} が消滅しました`); return; }
+                if (this.age > this.lifeSpan) { this.isDead = true; addLog(`敵対勢力 ${this.id} が自壊しました`); return; }
 
                 let nearest = null, minD = Infinity;
-                for (let e of entities) { let d = dist(this.x, this.y, e.x, e.y); if (d < minD) { minD = d; nearest = e; } }
+                for (let e of entities) {
+                    if(e.isMutatingToEnemy) continue;
+                    let d = dist(this.x, this.y, e.x, e.y);
+                    if (d < minD) { minD = d; nearest = e; }
+                }
 
                 let speedMult = (dayBrightness < 0.2) ? 1.5 : 1.0;
                 let maxSpd = (this.isStrong ? CONFIG.strongEnemySpeed : CONFIG.enemySpeed) * speedMult;
@@ -1124,7 +1214,7 @@
 
                 let attackingEntities = [];
                 for (let e of entities) {
-                    if (e.isDead) continue;
+                    if (e.isDead || e.isMutatingToEnemy) continue;
                     if (dist(this.x, this.y, e.x, e.y) < this.effectRadius) {
                         globalThreatLevel = min(1.0, globalThreatLevel + 0.005);
                         e.lifeSpan -= CONFIG.enemyDamagePerTick * e.defenseRatio; e.isUnderAttack = true; attackingEntities.push(e); recordDangerSpot(e.x, e.y);
@@ -1166,7 +1256,8 @@
             let container = document.getElementById('canvas-wrapper');
             let canvas = createCanvas(container.clientWidth, container.clientHeight);
             canvas.parent(container);
-            colorMode(HSB, 360, 100, 100);
+
+            colorMode(HSB, 360, 100, 100, 1.0);
 
             const optionsMenu = document.getElementById('options-menu');
             document.getElementById('btn-options').addEventListener('click', (e) => {
@@ -1202,9 +1293,7 @@
 
             const speedSlider = document.getElementById('speed-slider');
             const speedValue = document.getElementById('speed-value');
-
-            // --- 修正箇所：シークバーの目盛りを 1, 10, 20, 30, 40, 50 倍だけに固定する処理 ---
-            const SPEED_STEPS = [1, 10, 20, 30, 40, 50];
+            const SPEED_STEPS = [1, 10, 20, 30, 40, 50, 200];
             speedSlider.addEventListener('input', (e) => {
                 let stepIndex = parseInt(e.target.value);
                 simulationSpeed = SPEED_STEPS[stepIndex];
@@ -1215,10 +1304,6 @@
                 resetSimulation();
                 optionsMenu.classList.remove('show');
             });
-
-            const guideModal = document.getElementById('guide-modal');
-            document.getElementById('btn-guide').addEventListener('click', () => { guideModal.style.display = 'block'; });
-            document.getElementById('btn-close-modal').addEventListener('click', () => { guideModal.style.display = 'none'; });
 
             const logContainer = document.getElementById('log-container');
             const btnLogBottom = document.getElementById('btn-log-bottom');
@@ -1242,6 +1327,7 @@
             envState = "安定"; lastEnvChange = getSimTime();
             evoPhase = 1; maxGeneration = 1; totalBirths = 0; idCounter = 1; enemyIdCounter = 1; simulationStartTime = getSimTime();
             isExtinct = false; selectedObjectId = null; logs = []; globalThreatLevel = 0;
+            maxHistoricalPop = 0; totalCoresBuilt = 0;
 
             addLog("【創世】シャーレに新たな生命が芽生えました。", "era");
 
@@ -1262,7 +1348,7 @@
 
         function drawGrid() {
             push();
-            stroke(140, 20, dayBrightness * 15 + 8);
+            stroke(140, 20, dayBrightness * 15 + 8, 1.0);
             strokeWeight(0.5);
             let step = CONFIG.dotSize * 2;
             for (let x = 0; x < width; x += step) line(x, 0, x, height);
@@ -1293,57 +1379,143 @@
             }
         }
 
+        function drawRadarChart(ctx, stats) {
+            let cx = 150, cy = 150, r = 100;
+            ctx.clearRect(0, 0, 300, 300);
+
+            ctx.strokeStyle = "rgba(119, 153, 119, 0.3)";
+            ctx.lineWidth = 1;
+            for (let i = 1; i <= 5; i++) {
+                ctx.beginPath();
+                for (let j = 0; j < 5; j++) {
+                    let angle = (Math.PI * 2 * j / 5) - Math.PI / 2;
+                    let x = cx + Math.cos(angle) * (r * i / 5);
+                    let y = cy + Math.sin(angle) * (r * i / 5);
+                    if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            for (let j = 0; j < 5; j++) {
+                let angle = (Math.PI * 2 * j / 5) - Math.PI / 2;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+                ctx.stroke();
+            }
+
+            let labels = ["繁殖力", "防衛力", "適応力", "組織力", "技術力"];
+            ctx.fillStyle = "#779977";
+            ctx.font = "12px monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            for (let j = 0; j < 5; j++) {
+                let angle = (Math.PI * 2 * j / 5) - Math.PI / 2;
+                let x = cx + Math.cos(angle) * (r + 20);
+                let y = cy + Math.sin(angle) * (r + 15);
+                ctx.fillText(labels[j], x, y);
+            }
+
+            ctx.fillStyle = "rgba(85, 170, 170, 0.5)";
+            ctx.strokeStyle = "#55aaaa";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let j = 0; j < 5; j++) {
+                let angle = (Math.PI * 2 * j / 5) - Math.PI / 2;
+                let val = Math.min(100, Math.max(0, stats[j]));
+                let x = cx + Math.cos(angle) * (r * val / 100);
+                let y = cy + Math.sin(angle) * (r * val / 100);
+                if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
         function generateEvaluation() {
             let survivedMs = extinctTime - simulationStartTime;
             let m = Math.floor(survivedMs / 60000);
             let s = Math.floor((survivedMs % 60000) / 1000);
 
+            let prob = 100 / Math.pow(1.15, maxGeneration - 1);
+            let probStr = prob < 0.0001 ? "< 0.0001" : prob.toFixed(4);
+
             addLog("=================================", "era");
-            addLog("【観測終了】生命の軌跡 最終分析レポート", "era");
+            addLog("【観測終了】生命の軌跡 最終分析", "era");
             addLog("=================================", "era");
             addLog(`到達世代 : 第${maxGeneration}世代`);
             addLog(`生存時間 : ${m}分${s}秒`);
             addLog(`総誕生数 : ${totalBirths}体`);
-            addLog("---------------------------------", "era");
 
-            let rank = "";
-            let summary = "";
-            let analysis1 = "";
-            let analysis2 = "";
+            let btnHtml = `<button onclick="document.getElementById('eval-modal').style.display='block'" style="margin-top:8px; width:100%; border:1px solid var(--accent-cyan); color:var(--accent-cyan); font-weight:bold; padding:8px;">最終分析レポート</button>`;
+            addLog(btnHtml, "normal", true);
+
+            let rank = "", rankColor = "";
+            let summary = "", analysis = "";
 
             if (evoPhase === 1) {
-                rank = "E";
-                summary = "【崩壊原因: 脆弱な初期基盤】";
-                analysis1 = `第${maxGeneration}世代で途絶え、細胞から個へと至ったばかりの原始の群れは、あまりにも無防備でした。強固な防壁を持たず、傷ついた仲間を癒やす術も持たない彼らにとって、このシャーレの環境は過酷に過ぎました。`;
-                analysis2 = "外敵の襲来や飢餓に対し、単なる数の暴力で対抗しようとしたものの、資源の枯渇とともに連鎖的に崩壊。文明の礎を築く前に、歴史の闇へと消え去りました。";
-            } else if (evoPhase === 2) {
-                rank = "C";
-                summary = "【崩壊原因: 組織力の限界と外来種の脅威】";
-                analysis1 = `第${maxGeneration}世代まで命を繋ぎ、巣を中心に集落を形成。戦闘型による防衛と介護型による相互支援の概念を獲得しました。特筆すべきは、外敵の脅威に対して明確な「戦線」を構築した点です。`;
-                analysis2 = "しかし、飛来した青き外来種との資源競争により消耗を強いられました。集団としての統率力や過密を調整する冷酷さが欠如していたため、ジリ貧の末に生態系が瓦解しました。";
-            } else if (evoPhase === 3) {
-                rank = "B";
-                summary = "【崩壊原因: 高度化の果ての全体主義的限界】";
-                analysis1 = `第${maxGeneration}世代に及ぶ進化により、指揮型による滑らかな群れの統率と、過密を自ら間引きコアのエネルギーへ還元する「冷酷なシステム」を完成させ、強固な国家を築き上げました。`;
-                analysis2 = "彼らの敗因は、極度に最適化されたがゆえの「環境変化への脆弱性」です。外来種との激しい領土戦争や、長引く大干ばつによる急激な資源バランスの崩れにシステムが対応しきれず、連鎖崩壊を招きました。";
-            } else if (evoPhase === 4) {
-                if (survivedMs < 300000 || totalBirths < 400) {
-                    rank = "A";
-                    summary = "【崩壊原因: 進化の頂点と急速な終焉】";
-                    analysis1 = `第${maxGeneration}世代の果てに突然変異の発現に至り、個の能力が極限まで高められた美しい文明でした。他派閥を圧倒し、複雑な幾何学陣形を展開する姿は、まさに進化の到達点と言えます。`;
-                    analysis2 = "しかし栄華は長くは続きませんでした。過剰なエネルギー消費、あるいは予測不能な大災害が重なり、頂点に立った文明特有の脆さを露呈し、呆気なく幕を閉じました。";
+                if (maxGeneration < 5) {
+                    rank = "F"; rankColor = "#555555"; summary = "【泡沫の夢】";
+                    analysis = `第${maxGeneration}世代で途絶え、細胞から個へと至ったばかりの原始の群れは、あまりにも無防備でした。自己複製のエラーや内的変異のリスクにあっけなく屈し、組織化の兆しすら見られず、進化の袋小路に迷い込んだと言わざるを得ません。`;
                 } else {
-                    rank = "S";
-                    summary = "【評価: 永遠に語り継がれる究極の生態系】";
-                    analysis1 = `第${maxGeneration}世代という途方もない歴史を歩み、度重なる環境の激変、外来種との死闘、内部の過密問題など、あらゆる危機を乗り越えた奇跡の生態系です。彼らは単なる生命の集合体を超え、一つの「完全なシステム」として機能していました。`;
-                    analysis2 = "最終的には宇宙の理（システムの寿命）により絶滅を迎えましたが、彼らが残した膨大な生命の結晶と生存の記録は、このシャーレの歴史において燦然と輝く金字塔です。素晴らしい観測結果でした。";
+                    rank = "E"; rankColor = "#777777"; summary = "【原始の限界】";
+                    analysis = `第${maxGeneration}世代まで命を繋ぎ、わずかな世代交代には成功したものの、集団としての強靭さを欠いていました。防衛陣形も傷を癒やす術も持たない彼らにとって、同族からの変異という内部の裏切りはあまりにも過酷すぎました。`;
+                }
+            } else if (evoPhase === 2) {
+                if (maxGeneration < 15) {
+                    rank = "D"; rankColor = "#cc7755"; summary = "【集落の崩壊】";
+                    analysis = `集落を形成し、役割分担の端緒を掴んだ点は評価に値します。しかし、内部からの変異種や外来種の襲来に対する戦線の維持ができず、ジリ貧の末に瓦解しました。典型的な組織力不足による崩壊モデルです。`;
+                } else {
+                    rank = "C"; rankColor = "#ccaa55"; summary = "【抗争の犠牲者】";
+                    analysis = `組織的な防衛力を獲得し懸命に生存圏を維持しましたが、リソース管理の甘さが命取りとなりました。内的・外的な絶え間ない消耗戦に全エネルギーを奪われ、成長を阻害された結果の悲劇的な絶滅です。`;
+                }
+            } else if (evoPhase === 3) {
+                if (maxGeneration < 30) {
+                    rank = "B"; rankColor = "#55aacc"; summary = "【国家の黄昏】";
+                    analysis = `高度な指揮系統と間引きシステムを持つ強固な「国家」を築き上げました。しかし、極度に最適化されたシステムは皮肉にも環境の激変に対する柔軟性を奪いました。全体主義的な硬直化が内的崩壊の引き金です。`;
+                } else {
+                    rank = "A"; rankColor = "#77cc55"; summary = "【停滞する帝国】";
+                    analysis = `驚異的な組織力で繁栄を謳歌しましたが、突如として終焉を迎えました。高度化の果てに発生した未知の連鎖的バグ、あるいは内的変異のパンデミック。強すぎたがゆえに、自らの重みで崩壊に至りました。`;
+                }
+            } else if (evoPhase === 4) {
+                if (survivedMs < 600000) {
+                    rank = "S"; rankColor = "#d4af37"; summary = "【進化の極致と代償】";
+                    analysis = `突然変異を内包し、生命の可能性の極致に達しました。シャーレ全体を支配するほどの力を持った美しい文明でしたが、頂点に達した種族特有の過剰なエネルギー消費と「燃え尽き」を回避できませんでした。`;
+                } else if (survivedMs < 1200000) {
+                    rank = "SS"; rankColor = "#ff77ff"; summary = "【永遠のユートピア】";
+                    analysis = `長きにわたり完璧な均衡を保ち続けました。彼らは過酷な環境と完全に調和し、あらゆる内的・外的危機を組織力と技術力で退けました。この滅びは敗北ではなく、単なる「システムの寿命」という限界に過ぎません。`;
+                } else {
+                    rank = "EX"; rankColor = "#ff3333"; summary = "【神を超えし者】";
+                    analysis = `観測者の想像を絶する生存能力。もはやシャーレという箱庭に収まる器ではなく、宇宙的スケールでの生存競争にすら耐えうる究極の生態系です。内部の敵対変異すら完全にコントロールし、彼らの軌跡はこのシミュレーションの特異点となりました。`;
                 }
             }
 
-            addLog(summary, "warn");
-            addLog(analysis1);
-            addLog(analysis2);
-            addLog(`【総合評価: Rank ${rank}】`, "era");
+            let statReproduction = Math.min(100, (totalBirths / 10) + (maxHistoricalPop));
+            let statDefense = Math.min(100, (totalCoresBuilt * 10) + (evoPhase * 15));
+            let statAdaptation = Math.min(100, (survivedMs / 1000 / 60) * 10);
+            let statOrganization = Math.min(100, (evoPhase * 20) + (maxHistoricalPop));
+            let statTech = Math.min(100, (evoPhase * 25) + (maxGeneration / 2));
+            let stats = [statReproduction, statDefense, statAdaptation, statOrganization, statTech];
+
+            let rankEl = document.getElementById('eval-rank-container');
+            rankEl.innerText = `Rank ${rank}`;
+            rankEl.style.color = rankColor;
+
+            document.getElementById('eval-prob-container').innerHTML = `到達世代: <b>第${maxGeneration}世代</b><br>絶滅時点の到達確率: <b>${probStr}%</b>`;
+            document.getElementById('eval-summary').innerHTML = `<b>${summary}</b><br><br>${analysis}`;
+
+            document.getElementById('eval-stats-list').innerHTML = `
+                <li><b>繁殖力:</b> ${statReproduction.toFixed(1)} / 100</li>
+                <li><b>防衛力:</b> ${statDefense.toFixed(1)} / 100</li>
+                <li><b>適応力:</b> ${statAdaptation.toFixed(1)} / 100</li>
+                <li><b>組織力:</b> ${statOrganization.toFixed(1)} / 100</li>
+                <li><b>技術力:</b> ${statTech.toFixed(1)} / 100</li>
+            `;
+
+            let canvas = document.getElementById('radar-canvas');
+            let ctx = canvas.getContext('2d');
+            drawRadarChart(ctx, stats);
         }
 
         function draw() {
@@ -1365,12 +1537,11 @@
 
             dayPhase = `${String(h).padStart(2, '0')}:${m} (${timeName})`;
 
-            background(200, 30, map(dayBrightness, 0, 1, 3, 12));
+            background(200, 30, map(dayBrightness, 0, 1, 3, 12), 1.0);
             drawGrid();
 
             if (!isExtinct) {
-                // --- 50倍速に対応するため、更新ループの上限を50へ拡大 ---
-                let maxLoops = 50;
+                let maxLoops = 200;
                 let loops = 0;
                 while (getSimTime() - lastTickTime > CONFIG.tickInterval && loops < maxLoops) {
                     updateSimulation();
@@ -1432,6 +1603,8 @@
         function updateSimulation() {
             let now = getSimTime();
 
+            if (entities.length > maxHistoricalPop) maxHistoricalPop = entities.length;
+
             checkEvolution();
 
             if (now - lastEnvChange > 30000) {
@@ -1459,9 +1632,6 @@
 
             let spawnChance = (envState === "豊穣") ? 0.35 : ((envState === "極夜") ? 0.05 : ((envState === "大干ばつ") ? 0 : 0.15));
             if (nutrients.length < CONFIG.maxNutrients && random() < spawnChance) nutrients.push(new Nutrient(random(40, width - 40), random(40, height - 40)));
-
-            let dangerChance = (envState === "危険") ? 0.05 : 0.005;
-            if (enemies.length < 2 && random() < dangerChance) spawnEnemyAt(random(40, width - 40), random(40, height - 40), false);
 
             if (envState === "隕石群" && random() < 0.015) meteors.push(new Meteor(random(40, width - 40), random(40, height - 40)));
 
@@ -1496,7 +1666,7 @@
             if (target instanceof Enemy || target instanceof Meteor) fCol = {h: 0, s: 80, b: 80};
             if (target instanceof Nutrient || target instanceof Crystal || target instanceof Oasis) fCol = {h: 60, s: 20, b: 80};
 
-            stroke(fCol.h, fCol.s, fCol.b);
+            stroke(fCol.h, fCol.s, fCol.b, 1.0);
             strokeWeight(1);
             noFill();
             rectMode(CENTER);
@@ -1509,35 +1679,35 @@
             if (labelY + boxH > height) labelY = height - boxH;
 
             rectMode(CORNER); noStroke(); fill(0, 0, 5, 0.85); rect(labelX, labelY, boxW, boxH, 4);
-            fill(0, 0, 85); textSize(10); textAlign(LEFT, TOP); let pad = 6;
+            fill(0, 0, 85, 1.0); textSize(10); textAlign(LEFT, TOP); let pad = 6;
 
             if (target instanceof Entity) {
                 let factionStr = target.faction === 0 ? "緑派閥" : "青派閥 (外来種)";
-                fill(target.faction === 0 ? 140 : 220, 50, 80);
+                fill(target.faction === 0 ? 140 : 220, 50, 80, 1.0);
                 text(`ID: ${target.id} [${target.role}]`, labelX + pad, labelY + pad);
-                fill(0, 0, 85);
+                fill(0, 0, 85, 1.0);
                 text(`TYPE: T-${target.typeIndex} / ${factionStr}`, labelX + pad, labelY + pad + 14);
                 text(`GEN: ${target.generation} / ATK: ${target.attackPower.toFixed(2)}`, labelX + pad, labelY + pad + 28);
-                fill(120, 50, 80); text(`HP: ${(target.lifeSpan - target.age).toFixed(2)}`, labelX + pad, labelY + pad + 42);
-                fill(220, 40, 80); text(`行動: ${target.intent}`, labelX + pad, labelY + pad + 56);
+                fill(120, 50, 80, 1.0); text(`HP: ${(target.lifeSpan - target.age).toFixed(2)}`, labelX + pad, labelY + pad + 42);
+                fill(220, 40, 80, 1.0); text(`行動: ${target.intent}`, labelX + pad, labelY + pad + 56);
             } else if (target instanceof Enemy) {
-                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[${target.isStrong ? 'STRONG ENEMY' : 'ENEMY'}]`, labelX + pad, labelY + pad + 14); text(`HP: ${target.hp.toFixed(2)}`, labelX + pad, labelY + pad + 28); fill(0, 80, 80); text(`外敵: 群れを脅かす存在`, labelX + pad, labelY + pad + 42);
+                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[${target.isStrong ? 'STRONG ENEMY' : 'ENEMY'}]`, labelX + pad, labelY + pad + 14); text(`HP: ${target.hp.toFixed(2)}`, labelX + pad, labelY + pad + 28); fill(0, 80, 80, 1.0); text(`外敵: 群れを脅かす存在`, labelX + pad, labelY + pad + 42);
             } else if (target instanceof Core) {
                 let factionStr = target.faction === 0 ? "緑派閥" : "青派閥";
-                fill(target.faction === 0 ? 140 : 220, 50, 80);
+                fill(target.faction === 0 ? 140 : 220, 50, 80, 1.0);
                 text(`ID: ${target.id}`, labelX + pad, labelY + pad);
-                fill(0, 0, 85);
-                text(`[CORE (${factionStr}の巣)]`, labelX + pad, labelY + pad + 14); text(`ENERGY: ${target.energy.toFixed(2)}`, labelX + pad, labelY + pad + 28); fill(45, 80, 90); text(`備蓄エネルギーを分配する`, labelX + pad, labelY + pad + 42);
+                fill(0, 0, 85, 1.0);
+                text(`[CORE (${factionStr}の巣)]`, labelX + pad, labelY + pad + 14); text(`ENERGY: ${target.energy.toFixed(2)}`, labelX + pad, labelY + pad + 28); fill(45, 80, 90, 1.0); text(`備蓄エネルギーを分配する`, labelX + pad, labelY + pad + 42);
             } else if (target instanceof Barrier) {
-                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[BARRIER (防壁)]`, labelX + pad, labelY + pad + 14); text(`HP: ${target.hp.toFixed(2)}/${target.maxHp.toFixed(2)}`, labelX + pad, labelY + pad + 28); fill(45, 80, 90); text(`外敵から仲間を守る`, labelX + pad, labelY + pad + 42);
+                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[BARRIER (防壁)]`, labelX + pad, labelY + pad + 14); text(`HP: ${target.hp.toFixed(2)}/${target.maxHp.toFixed(2)}`, labelX + pad, labelY + pad + 28); fill(45, 80, 90, 1.0); text(`外敵から仲間を守る`, labelX + pad, labelY + pad + 42);
             } else if (target instanceof Nutrient) {
-                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[NUTRIENT (有機栄養素)]`, labelX + pad, labelY + pad + 14); fill(120, 80, 80); text(`生命の維持に不可欠な資源`, labelX + pad, labelY + pad + 28);
+                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[NUTRIENT (有機栄養素)]`, labelX + pad, labelY + pad + 14); fill(120, 80, 80, 1.0); text(`生命の維持に不可欠な資源`, labelX + pad, labelY + pad + 28);
             } else if (target instanceof Crystal) {
-                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[${target.isGiant ? 'GIANT CRYSTAL' : 'CRYSTAL'}]`, labelX + pad, labelY + pad + 14); fill(190, 50, 100); text(`やがて分解され栄養となる`, labelX + pad, labelY + pad + 28);
+                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[${target.isGiant ? 'GIANT CRYSTAL' : 'CRYSTAL'}]`, labelX + pad, labelY + pad + 14); fill(190, 50, 100, 1.0); text(`やがて分解され栄養となる`, labelX + pad, labelY + pad + 28);
             } else if (target instanceof Meteor) {
-                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[METEOR (落下予測)]`, labelX + pad, labelY + pad + 14); fill(0, 80, 100); text(`巨大なエネルギーが衝突する`, labelX + pad, labelY + pad + 28);
+                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[METEOR (落下予測)]`, labelX + pad, labelY + pad + 14); fill(0, 80, 100, 1.0); text(`巨大なエネルギーが衝突する`, labelX + pad, labelY + pad + 28);
             } else if (target instanceof Oasis) {
-                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[OASIS (豊穣の泉)]`, labelX + pad, labelY + pad + 14); fill(150, 80, 100); text(`生命を癒やし資源を生み出す`, labelX + pad, labelY + pad + 28);
+                text(`ID: ${target.id}`, labelX + pad, labelY + pad); text(`[OASIS (豊穣の泉)]`, labelX + pad, labelY + pad + 14); fill(150, 80, 100, 1.0); text(`生命を癒やし資源を生み出す`, labelX + pad, labelY + pad + 28);
             }
             pop();
         }
@@ -1560,9 +1730,19 @@
                 }
             }
 
+            // 💡 変更箇所: タップ時の選択解除ロジック
             if (closestObj) {
-                selectedObjectId = closestObj.id;
+                if (selectedObjectId === closestObj.id) {
+                    selectedObjectId = null; // 同じ個体を再タップで選択解除
+                } else {
+                    selectedObjectId = closestObj.id; // 違う個体をタップで新たに選択
+                }
                 lastSelectTime = now;
+            } else {
+                if (selectedObjectId !== null) {
+                    selectedObjectId = null; // 何もない場所をタップで選択解除
+                    lastSelectTime = now;
+                }
             }
         }
 
@@ -1591,7 +1771,11 @@
             for (let log of logs) {
                 let d = document.createElement('div');
                 d.className = 'log-entry ' + log.colorClass;
-                d.innerText = log.text;
+                if (log.html) {
+                    d.innerHTML = log.html;
+                } else {
+                    d.innerText = log.text;
+                }
                 c.appendChild(d);
             }
 
